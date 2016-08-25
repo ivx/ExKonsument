@@ -42,6 +42,14 @@ defmodule ExKonsument.Consumer do
     {:noreply, state}
   end
 
+  def handle_info(:connect, state) do
+    state
+    |> Map.get(:consumer)
+    |> setup_amqp_consumer
+
+    {:noreply, state}
+  end
+
   def handle_info({:basic_cancel, _}, state) do
     log_info state.consumer, "Consuming canceled, committing suicide."
     {:stop, :shutdown, state}
@@ -61,13 +69,12 @@ defmodule ExKonsument.Consumer do
     case ExKonsument.setup_consumer(consumer) do
       {:ok, connection} ->
         Process.monitor(connection.pid)
+        log_info consumer, "Connected successfully!"
 
       {:error, msg} ->
         log_error(consumer, msg)
-        :timer.sleep(1000)
-        setup_amqp_consumer(consumer)
+        :timer.send_after(1000, :connect)
     end
-    log_info consumer, "Connected successfully!"
   end
 
   defp log_info(consumer, message) do

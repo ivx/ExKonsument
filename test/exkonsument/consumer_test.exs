@@ -42,6 +42,24 @@ defmodule ExKonsument.ConsumerTest do
     end
   end
 
+  test "it tries to connect when receiving a :connect message" do
+    with_mock ExKonsument, message_queue_mocks do
+      ExKonsument.Consumer.handle_info(:connect, %{consumer: consumer})
+
+      assert called ExKonsument.setup_consumer(consumer)
+    end
+  end
+
+  test "it retries to connect when it failed" do
+    setup_consumer_error_mock = [setup_consumer: fn _ -> {:error, :failed} end]
+    with_mock ExKonsument, setup_consumer_error_mock do
+      {:ok, _state} = ExKonsument.Consumer.init(%{consumer: consumer})
+
+      assert_receive :connect, 2000
+      assert called ExKonsument.setup_consumer(consumer)
+    end
+  end
+
   test "it shuts down when the connection dies" do
     with_mock ExKonsument, message_queue_mocks do
       {:ok, pid} = ExKonsument.Consumer.start_link(consumer)
