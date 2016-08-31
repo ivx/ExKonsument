@@ -4,6 +4,10 @@ defmodule ExKonsument do
     AMQP.Connection.open(connection_string)
   end
 
+  def close_connection(connection) do
+    AMQP.Connection.close(connection)
+  end
+
   def open_channel(connection) do
     AMQP.Channel.open(connection)
   end
