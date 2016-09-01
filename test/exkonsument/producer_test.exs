@@ -63,12 +63,12 @@ defmodule ExKonsument.ProducerTest do
       {:ok, pid} = ExKonsument.Producer.start_link(producer)
 
       payload = %{test: :payload}
-      ExKonsument.Producer.publish(pid, payload)
+      ExKonsument.Producer.publish(pid, payload, :routing_key)
 
       assert called ExKonsument.declare_exchange(
         :channel, "exchange", :topic, [])
       assert called ExKonsument.publish(
-        :channel, "exchange", "testing", Poison.encode!(payload))
+        :channel, "exchange", :routing_key, Poison.encode!(payload))
     end
   end
 
@@ -79,7 +79,6 @@ defmodule ExKonsument.ProducerTest do
   defp producer do
     %ExKonsument.Producer{
       exchange: exchange,
-      routing_key: "testing",
       connection_string: "amqp://guest:guest@localhost"
     }
   end

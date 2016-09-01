@@ -5,7 +5,6 @@ defmodule ExKonsument.Producer do
   require Logger
 
   defstruct exchange: nil,
-            routing_key: nil,
             connection_string: nil
 
   def start_link(producer, opts \\ []) do
@@ -33,15 +32,15 @@ defmodule ExKonsument.Producer do
     end
   end
 
-  def publish(pid, payload) do
-    GenServer.call(pid, {:publish, payload})
+  def publish(pid, payload, routing_key) do
+    GenServer.call(pid, {:publish, payload, routing_key})
   end
 
-  def handle_call({:publish, payload}, _, state) do
+  def handle_call({:publish, payload, routing_key}, _, state) do
     result = send_event(
       state.channel,
       state.producer.exchange,
-      state.producer.routing_key,
+      routing_key,
       payload
     )
 
