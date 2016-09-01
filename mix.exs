@@ -32,6 +32,7 @@ defmodule ExKonsument.Mixfile do
       git: "https://github.com/jbrisbin/amqp_client",
       override: true},
      {:poison, "~> 2.0"},
+     {:credo, "~> 0.1", only: :dev},
      {:mock, "~> 0.1", only: :test}]
   end
 end
