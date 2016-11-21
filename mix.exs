@@ -27,12 +27,12 @@ defmodule ExKonsument.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [{:amqp, "0.1.4"},
+    [{:amqp, "0.1.5"},
      {:amqp_client,
       git: "https://github.com/jbrisbin/amqp_client",
       override: true},
-     {:poison, "~> 2.0"},
-     {:credo, "~> 0.1", only: :dev},
-     {:mock, "~> 0.1", only: :test}]
+     {:poison, "~> 3.0"},
+     {:credo, "~> 0.5.3", only: :dev},
+     {:mock, "~> 0.2", only: :test}]
   end
 end
