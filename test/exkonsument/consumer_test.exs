@@ -98,7 +98,7 @@ defmodule ExKonsument.ConsumerTest do
     %ExKonsument.Consumer{
       queue: queue,
       exchange: exchange,
-      routing_key: "testing",
+      routing_keys: ["testing"],
       handling_fn: handling_fn(self),
       state: :state
     }

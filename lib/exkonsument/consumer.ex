@@ -6,7 +6,7 @@ defmodule ExKonsument.Consumer do
 
   defstruct queue: nil,
             exchange: nil,
-            routing_key: nil,
+            routing_keys: nil,
             handling_fn: nil,
             connection_string: nil,
             state: nil

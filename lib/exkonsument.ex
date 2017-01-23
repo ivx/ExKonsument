@@ -24,14 +24,11 @@ defmodule ExKonsument do
     AMQP.Basic.publish(channel, exchange, routing_key, payload)
   end
 
-  def bind_queue(channel, queue, exchange, routing_keys) when is_list(routing_keys) do
+  def bind_queue(channel, queue, exchange, routing_keys) do
     Enum.map(routing_keys, fn key ->
       :ok = AMQP.Queue.bind(channel, queue, exchange, routing_key: key)
     end)
     :ok
-  end
-  def bind_queue(channel, queue, exchange, routing_key) do
-    AMQP.Queue.bind(channel, queue, exchange, routing_key: routing_key)
   end
 
   def consume(channel, queue, consumer_pid \\ nil, opts \\ []) do
@@ -63,7 +60,7 @@ defmodule ExKonsument do
          :ok <- bind_queue(channel,
                            consumer.queue.name,
                            consumer.exchange.name,
-                           consumer.routing_key) do
+                           consumer.routing_keys) do
       :ok
     else
       _ -> :error

@@ -31,7 +31,7 @@ defmodule ExKonsumentTest do
       connection_string: :connection_string,
       exchange: exchange,
       queue: queue,
-      routing_key: :routing_key
+      routing_keys: [:routing_key]
     }
 
     with_mocks([
@@ -78,7 +78,7 @@ defmodule ExKonsumentTest do
       connection_string: :connection_string,
       exchange: exchange,
       queue: queue,
-      routing_key: [:first_routing_key, :second_routing_key]
+      routing_keys: [:first_routing_key, :second_routing_key]
     }
 
     with_mocks([
