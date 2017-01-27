@@ -37,6 +37,7 @@ defmodule ExKonsument do
 
   def setup_consumer(consumer) do
     with {:ok, connection} <- open_connection(consumer.connection_string),
+         true <- Process.link(connection.pid),
          {:ok, channel} <- open_channel(connection),
          :ok <- declare_consumer(channel, consumer),
          {:ok, _} <- consume(channel, consumer.queue.name, nil, no_ack: true) do

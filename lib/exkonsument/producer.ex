@@ -22,7 +22,7 @@ defmodule ExKonsument.Producer do
     connection_string = producer.connection_string
     with {:ok, connection} <- ExKonsument.open_connection(connection_string),
          {:ok, channel} = ExKonsument.open_channel(connection) do
-      Process.monitor(connection.pid)
+      Process.link(connection.pid)
       log_info producer, "Connected successfully!"
       {:ok, channel}
     else
