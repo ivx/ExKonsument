@@ -68,8 +68,8 @@ defmodule ExKonsument.Consumer do
     |> setup_amqp_consumer
 
     case result do
-      {:ok, connection} -> Map.put(state, :connection, connection)
-      {:error, _reason} -> Map.put(state, :connection, nil)
+      {:ok, channel} -> Map.put(state, :channel, channel)
+      {:error, _reason} -> Map.put(state, :channel, nil)
     end
   end
 
@@ -100,7 +100,7 @@ defmodule ExKonsument.Consumer do
          true <- Process.link(connection.pid),
          :ok <- declare_consumer(channel, consumer),
          {:ok, _} <- ExKonsument.consume(channel, consumer.queue.name, nil, no_ack: true) do
-      {:ok, connection}
+      {:ok, channel}
     else
       {:error, error} ->
         {:error, error}
@@ -128,6 +128,8 @@ defmodule ExKonsument.Consumer do
   end
 
   def terminate(_reason, state) do
-    ExKonsument.close_connection(state.connection)
+    if ExKonsument.connection_open?(state.channel.conn) do
+      ExKonsument.close_connection(state.channel.conn)
+    end
   end
 end

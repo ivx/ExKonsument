@@ -8,6 +8,10 @@ defmodule ExKonsument do
     AMQP.Connection.close(connection)
   end
 
+  def connection_open?(connection) do
+    Process.alive?(connection.pid)
+  end
+
   def open_channel(connection) do
     AMQP.Channel.open(connection)
   end

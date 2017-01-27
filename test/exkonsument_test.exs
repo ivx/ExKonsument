@@ -25,4 +25,14 @@ defmodule ExKonsumentTest do
       assert called AMQP.Connection.close(:connection)
     end
   end
+
+  test "it knows when a connection is open or closed" do
+    {:ok, pid} = Agent.start_link(fn -> nil end)
+
+    connection = %{pid: pid}
+    assert ExKonsument.connection_open?(connection)
+
+    Agent.stop(pid)
+    refute ExKonsument.connection_open?(connection)
+  end
 end

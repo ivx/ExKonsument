@@ -85,6 +85,8 @@ defmodule ExKonsument.Producer do
   end
 
   def terminate(_reason, state) do
-    ExKonsument.close_connection(state.channel.conn)
+    if ExKonsument.connection_open?(state.channel.conn) do
+      ExKonsument.close_connection(state.channel.conn)
+    end
   end
 end

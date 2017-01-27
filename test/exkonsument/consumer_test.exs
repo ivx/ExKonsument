@@ -32,7 +32,9 @@ defmodule ExKonsument.ConsumerTest do
   end
 
   test "it opens a connection with state" do
-    with_mocks amqp_mocks(%{pid: self()}) do
+    connection = %{pid: self()}
+    channel = %{conn: connection}
+    with_mocks amqp_mocks(connection) do
       {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
       send pid, {:basic_consume_ok, nil}
       send pid, {:basic_deliver, Poison.encode!(%{test: "test"}), :opts}
@@ -41,18 +43,18 @@ defmodule ExKonsument.ConsumerTest do
 
       assert called ExKonsument.open_connection(:connection_string)
       assert called ExKonsument.open_channel(%{pid: self()})
-      assert called ExKonsument.declare_exchange(:channel,
+      assert called ExKonsument.declare_exchange(channel,
                                                  :exchange_name,
                                                  :exchange_type,
                                                  :exchange_options)
-      assert called ExKonsument.declare_queue(:channel,
+      assert called ExKonsument.declare_queue(channel,
                                               :queue_name,
                                               :queue_options)
-      assert called ExKonsument.bind_queue(:channel,
+      assert called ExKonsument.bind_queue(channel,
                                            :queue_name,
                                            :exchange_name,
                                            ["testing"])
-      assert called ExKonsument.consume(:channel,
+      assert called ExKonsument.consume(channel,
                                         :queue_name,
                                         nil,
                                         no_ack: true)
@@ -64,7 +66,7 @@ defmodule ExKonsument.ConsumerTest do
     with_mocks amqp_mocks(connection) do
       result = ExKonsument.Consumer.handle_info(:connect, %{consumer: consumer()})
 
-      expected_state = %{consumer: consumer(), connection: connection}
+      expected_state = %{consumer: consumer(), channel: %{conn: connection}}
 
       assert called ExKonsument.open_connection(:connection_string)
       assert {:noreply, expected_state} == result
@@ -156,18 +158,20 @@ defmodule ExKonsument.ConsumerTest do
   defp amqp_mocks(connection) do
     [
       {ExKonsument, [], [open_connection: fn _ -> {:ok, connection} end]},
-      {ExKonsument, [], [open_channel: fn _ -> {:ok, :channel} end]},
+      {ExKonsument, [], [open_channel: fn _ -> {:ok, %{conn: connection}} end]},
       {ExKonsument, [], [declare_exchange: fn _, _, _, _ -> :ok end]},
       {ExKonsument, [], [declare_queue: fn _, _, _ -> {:ok, :queue} end,
                          bind_queue: fn _, _, _, _ -> :ok end]},
       {ExKonsument, [], [consume: fn _, _, _, _ -> {:ok, :result} end]},
-      {ExKonsument, [], [close_connection: fn _ -> :ok end]}
+      {ExKonsument, [], [close_connection: fn _ -> :ok end]},
+      {ExKonsument, [], [connection_open?: fn _ -> true end]}
     ]
   end
 
   defp amqp_error_mocks() do
     [
-      {ExKonsument, [], [open_connection: fn _ -> {:error, :reason} end]}
+      {ExKonsument, [], [open_connection: fn _ -> {:error, :reason} end]},
+      {ExKonsument, [], [connection_open?: fn _ -> false end]}
     ]
   end
 end
