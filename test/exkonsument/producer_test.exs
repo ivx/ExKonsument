@@ -32,9 +32,10 @@ defmodule ExKonsument.ProducerTest do
       {:noreply, new_state} = ExKonsument.Producer.handle_info(
         :connect, %{producer: producer(), channel: nil})
 
-      assert %{producer: producer(), channel: :channel} == new_state
+      connection = %{pid: self()}
+      assert %{producer: producer(), channel: %{conn: connection}} == new_state
       assert called ExKonsument.open_connection(producer().connection_string)
-      assert called ExKonsument.open_channel(%{pid: self()})
+      assert called ExKonsument.open_channel(connection)
     end
   end
 
@@ -51,24 +52,28 @@ defmodule ExKonsument.ProducerTest do
   test "it shuts down when the connection dies" do
     with_mock ExKonsument, message_queue_mocks() do
       {:ok, pid} = ExKonsument.Producer.start_link(producer())
-      send pid, {:DOWN, nil, :process, nil, nil}
-      Process.flag(:trap_exit, true)
+      Process.unlink(pid)
 
-      assert_receive {:EXIT, _, :shutdown}
+      send pid, {:DOWN, nil, :process, nil, nil}
+
+      :timer.sleep(100)
+      refute Process.alive?(pid)
     end
   end
 
   test "it publishes a payload to the exchange" do
-    with_mock ExKonsument, message_queue_mocks() do
+    connection = %{pid: self()}
+    with_mock ExKonsument, message_queue_mocks(connection) do
       {:ok, pid} = ExKonsument.Producer.start_link(producer())
 
       payload = %{test: :payload}
       ExKonsument.Producer.publish(pid, payload, :routing_key)
 
+      channel = %{conn: connection}
       assert called ExKonsument.declare_exchange(
-        :channel, "exchange", :topic, [])
+        channel, "exchange", :topic, [])
       assert called ExKonsument.publish(
-        :channel, "exchange", :routing_key, Poison.encode!(payload))
+        channel, "exchange", :routing_key, Poison.encode!(payload))
     end
   end
 
@@ -83,6 +88,19 @@ defmodule ExKonsument.ProducerTest do
       true = Process.exit(producer_pid, :kill)
       :timer.sleep(100)
       refute Process.alive?(connection.pid)
+    end
+  end
+
+  test "it closes connection when the producer is stopped" do
+    connection = %{pid: self()}
+    with_mock ExKonsument, message_queue_mocks(connection) do
+      {:ok, producer_pid} = ExKonsument.Producer.start_link(producer())
+      Process.unlink(producer_pid)
+
+      Process.exit(producer_pid, :normal)
+
+      :timer.sleep(100)
+      assert called ExKonsument.close_connection(connection)
     end
   end
 
@@ -101,14 +119,16 @@ defmodule ExKonsument.ProducerTest do
   defp message_queue_mocks(connection) do
     [
       open_connection: open_connection_mock(connection),
-      open_channel: &open_channel_mock/1,
+      open_channel: open_channel_mock(connection),
       declare_exchange: &declare_exchange_mock/4,
       publish: &publish_mock/4,
+      close_connection: &close_connection_mock/1
     ]
   end
 
   defp open_connection_mock(connection), do: fn _ -> {:ok, connection} end
-  defp open_channel_mock(_), do: {:ok, :channel}
+  defp open_channel_mock(connection), do: fn _ -> {:ok, %{conn: connection}} end
   defp declare_exchange_mock(_, _, _, _), do: :ok
   defp publish_mock(_, _, _, _), do: :ok
+  defp close_connection_mock(_), do: :ok
 end

@@ -12,6 +12,7 @@ defmodule ExKonsument.Producer do
   end
 
   def init(producer) do
+    Process.flag(:trap_exit, true)
     {:ok, channel} = setup_amqp_producer(producer)
     state = %{producer: producer, channel: channel}
     {:ok, state}
@@ -81,5 +82,9 @@ defmodule ExKonsument.Producer do
 
   defp log_error(producer, message) do
     Logger.error "#{producer.exchange.name}: #{message}"
+  end
+
+  def terminate(_reason, state) do
+    ExKonsument.close_connection(state.channel.conn)
   end
 end
