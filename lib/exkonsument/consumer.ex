@@ -76,9 +76,9 @@ defmodule ExKonsument.Consumer do
   defp setup_amqp_consumer(consumer) do
     log_info consumer, "Trying to connect to RabbitMQ..."
     case setup_consumer(consumer) do
-      {:ok, connection} ->
+      {:ok, channel} ->
         log_info consumer, "Connected successfully!"
-        {:ok, connection}
+        {:ok, channel}
 
       {:error, msg} ->
         log_error(consumer, msg)
