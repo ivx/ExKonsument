@@ -18,10 +18,7 @@ defmodule ExKonsument.Consumer do
 
   def init(state) do
     Process.flag(:trap_exit, true)
-    new_state = case setup_amqp_consumer(state[:consumer]) do
-      {:ok, connection} -> Map.put(state, :connection, connection)
-      {:error, _reason} -> Map.put(state, :connection, nil)
-    end
+    new_state = connect(state)
     {:ok, new_state}
   end
 
@@ -47,11 +44,8 @@ defmodule ExKonsument.Consumer do
   end
 
   def handle_info(:connect, state) do
-    state
-    |> Map.get(:consumer)
-    |> setup_amqp_consumer
-
-    {:noreply, state}
+    new_state = connect(state)
+    {:noreply, new_state}
   end
 
   def handle_info({:basic_cancel, _}, state) do
@@ -66,6 +60,17 @@ defmodule ExKonsument.Consumer do
   def handle_info({:DOWN, _, :process, _, _}, state) do
     log_info state.consumer, "Connection died, committing suicide."
     {:stop, :shutdown, state}
+  end
+
+  defp connect(state) do
+    result = state
+    |> Map.get(:consumer)
+    |> setup_amqp_consumer
+
+    case result do
+      {:ok, connection} -> Map.put(state, :connection, connection)
+      {:error, _reason} -> Map.put(state, :connection, nil)
+    end
   end
 
   defp setup_amqp_consumer(consumer) do

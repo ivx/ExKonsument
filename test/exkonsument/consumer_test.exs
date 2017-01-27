@@ -60,10 +60,14 @@ defmodule ExKonsument.ConsumerTest do
   end
 
   test "it tries to connect when receiving a :connect message" do
-    with_mocks amqp_mocks(%{pid: self()}) do
-      ExKonsument.Consumer.handle_info(:connect, %{consumer: consumer()})
+    connection = %{pid: self()}
+    with_mocks amqp_mocks(connection) do
+      result = ExKonsument.Consumer.handle_info(:connect, %{consumer: consumer()})
+
+      expected_state = %{consumer: consumer(), connection: connection}
 
       assert called ExKonsument.open_connection(:connection_string)
+      assert {:noreply, expected_state} == result
     end
   end
 
@@ -80,7 +84,6 @@ defmodule ExKonsument.ConsumerTest do
     {:ok, fake_connection} = Agent.start(fn -> nil end)
     connection = %{pid: fake_connection}
     with_mocks(amqp_mocks(connection)) do
-
       {:ok, consumer_pid} = ExKonsument.Consumer.start_link(consumer())
 
       Process.unlink(consumer_pid)
