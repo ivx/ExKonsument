@@ -90,10 +90,9 @@ defmodule ExKonsument.ConsumerTest do
 
       Process.unlink(consumer_pid)
 
-      assert Process.alive?(connection.pid)
-      true = Process.exit(consumer_pid, :kill)
+      Agent.stop(fake_connection)
       :timer.sleep(100)
-      refute Process.alive?(connection.pid)
+      refute Process.alive?(consumer_pid)
     end
   end
 
@@ -113,12 +112,7 @@ defmodule ExKonsument.ConsumerTest do
     connection = %{pid: self()}
     with_mocks amqp_mocks(connection) do
       {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
-      Process.unlink(pid)
-
-      Process.exit(pid, :normal)
-
-      :timer.sleep(100)
-      refute Process.alive?(pid)
+      GenServer.stop(pid)
       assert called ExKonsument.close_connection(connection)
     end
   end

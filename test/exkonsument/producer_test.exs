@@ -76,29 +76,11 @@ defmodule ExKonsument.ProducerTest do
     end
   end
 
-  test "exiting the producer process closes the connection" do
-    {:ok, fake_connection} = Agent.start(fn -> nil end)
-    connection = %{pid: fake_connection}
-    with_mocks message_queue_mocks(connection) do
-      {:ok, producer_pid} = ExKonsument.Producer.start_link(producer())
-
-      Process.unlink(producer_pid)
-      assert Process.alive?(connection.pid)
-      true = Process.exit(producer_pid, :kill)
-      :timer.sleep(100)
-      refute Process.alive?(connection.pid)
-    end
-  end
-
   test "it closes connection when the producer is stopped" do
     connection = %{pid: self()}
     with_mocks message_queue_mocks(connection) do
       {:ok, producer_pid} = ExKonsument.Producer.start_link(producer())
-      Process.unlink(producer_pid)
-
-      Process.exit(producer_pid, :normal)
-
-      :timer.sleep(100)
+      GenServer.stop(producer_pid)
       assert called ExKonsument.close_connection(connection)
     end
   end
