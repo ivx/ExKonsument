@@ -102,9 +102,6 @@ defmodule ExKonsument.ProducerTest do
       {ExKonsument, [], [open_connection: fn _ -> {:ok, connection} end]},
       {ExKonsument, [], [open_channel: fn _ -> {:ok, %{conn: connection}} end]},
       {ExKonsument, [], [declare_exchange: fn _, _, _, _ -> :ok end]},
-      {ExKonsument, [], [declare_queue: fn _, _, _ -> {:ok, :queue} end,
-                         bind_queue: fn _, _, _, _ -> :ok end]},
-      {ExKonsument, [], [consume: fn _, _, _, _ -> {:ok, :result} end]},
       {ExKonsument, [], [publish: fn _, _, _, _ -> :ok end]},
       {ExKonsument, [], [close_connection: fn _ -> :ok end]},
       {ExKonsument, [], [connection_open?: fn _ -> true end]}
