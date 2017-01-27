@@ -29,7 +29,7 @@ defmodule ExKonsument do
   end
 
   def bind_queue(channel, queue, exchange, routing_keys) do
-    Enum.map(routing_keys, fn key ->
+    Enum.each(routing_keys, fn key ->
       :ok = AMQP.Queue.bind(channel, queue, exchange, routing_key: key)
     end)
     :ok

@@ -95,11 +95,19 @@ defmodule ExKonsument.Consumer do
   end
 
   defp setup_consumer(consumer) do
-    with {:ok, connection} <- ExKonsument.open_connection(consumer.connection_string),
-         {:ok, channel} <- ExKonsument.open_channel(connection),
-         true <- Process.link(connection.pid),
-         :ok <- declare_consumer(channel, consumer),
-         {:ok, _} <- ExKonsument.consume(channel, consumer.queue.name, nil, no_ack: true) do
+    with {:ok, connection} <-
+           ExKonsument.open_connection(consumer.connection_string),
+         {:ok, channel} <-
+           ExKonsument.open_channel(connection),
+         true <-
+           Process.link(connection.pid),
+         :ok <-
+           declare_consumer(channel, consumer),
+         {:ok, _} <-
+           ExKonsument.consume(channel,
+                               consumer.queue.name,
+                               nil,
+                               no_ack: true) do
       {:ok, channel}
     else
       {:error, error} ->
