@@ -17,8 +17,9 @@ defmodule ExKonsument.Consumer do
   end
 
   def init(state) do
-    setup_amqp_consumer(state[:consumer])
-    {:ok, state}
+    Process.flag(:trap_exit, true)
+    new_state = connect(state)
+    {:ok, new_state}
   end
 
   def handle_info({:basic_consume_ok, _}, state) do
@@ -43,11 +44,8 @@ defmodule ExKonsument.Consumer do
   end
 
   def handle_info(:connect, state) do
-    state
-    |> Map.get(:consumer)
-    |> setup_amqp_consumer
-
-    {:noreply, state}
+    new_state = connect(state)
+    {:noreply, new_state}
   end
 
   def handle_info({:basic_cancel, _}, state) do
@@ -64,12 +62,23 @@ defmodule ExKonsument.Consumer do
     {:stop, :shutdown, state}
   end
 
+  defp connect(state) do
+    result = state
+    |> Map.get(:consumer)
+    |> setup_amqp_consumer
+
+    case result do
+      {:ok, channel} -> Map.put(state, :channel, channel)
+      {:error, _reason} -> Map.put(state, :channel, nil)
+    end
+  end
+
   defp setup_amqp_consumer(consumer) do
     log_info consumer, "Trying to connect to RabbitMQ..."
-    case ExKonsument.setup_consumer(consumer) do
-      {:ok, connection} ->
-        Process.monitor(connection.pid)
+    case setup_consumer(consumer) do
+      {:ok, channel} ->
         log_info consumer, "Connected successfully!"
+        {:ok, channel}
 
       {:error, msg} ->
         log_error(consumer, msg)
@@ -83,5 +92,52 @@ defmodule ExKonsument.Consumer do
 
   defp log_error(consumer, message) do
     Logger.error "#{consumer.queue.name}: #{message}"
+  end
+
+  defp setup_consumer(consumer) do
+    with {:ok, connection} <-
+           ExKonsument.open_connection(consumer.connection_string),
+         {:ok, channel} <-
+           ExKonsument.open_channel(connection),
+         true <-
+           Process.link(connection.pid),
+         :ok <-
+           declare_consumer(channel, consumer),
+         {:ok, _} <-
+           ExKonsument.consume(channel,
+                               consumer.queue.name,
+                               nil,
+                               no_ack: true) do
+      {:ok, channel}
+    else
+      {:error, error} ->
+        {:error, error}
+      :error ->
+        {:error, :unknown}
+    end
+  end
+
+  defp declare_consumer(channel, consumer) do
+    with :ok <- ExKonsument.declare_exchange(channel,
+                                 consumer.exchange.name,
+                                 consumer.exchange.type,
+                                 consumer.exchange.options),
+         {:ok, _} <- ExKonsument.declare_queue(channel,
+                                   consumer.queue.name,
+                                   consumer.queue.options),
+         :ok <- ExKonsument.bind_queue(channel,
+                                       consumer.queue.name,
+                                       consumer.exchange.name,
+                                       consumer.routing_keys) do
+      :ok
+    else
+      _ -> :error
+    end
+  end
+
+  def terminate(_reason, state) do
+    if ExKonsument.connection_open?(state.channel.conn) do
+      ExKonsument.close_connection(state.channel.conn)
+    end
   end
 end

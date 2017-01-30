@@ -8,6 +8,10 @@ defmodule ExKonsument do
     AMQP.Connection.close(connection)
   end
 
+  def connection_open?(connection) do
+    Process.alive?(connection.pid)
+  end
+
   def open_channel(connection) do
     AMQP.Channel.open(connection)
   end
@@ -25,7 +29,7 @@ defmodule ExKonsument do
   end
 
   def bind_queue(channel, queue, exchange, routing_keys) do
-    Enum.map(routing_keys, fn key ->
+    Enum.each(routing_keys, fn key ->
       :ok = AMQP.Queue.bind(channel, queue, exchange, routing_key: key)
     end)
     :ok
@@ -33,37 +37,5 @@ defmodule ExKonsument do
 
   def consume(channel, queue, consumer_pid \\ nil, opts \\ []) do
     AMQP.Basic.consume(channel, queue, consumer_pid, opts)
-  end
-
-  def setup_consumer(consumer) do
-    with {:ok, connection} <- open_connection(consumer.connection_string),
-         {:ok, channel} <- open_channel(connection),
-         :ok <- declare_consumer(channel, consumer),
-         {:ok, _} <- consume(channel, consumer.queue.name, nil, no_ack: true) do
-      {:ok, connection}
-    else
-      {:error, error} ->
-        {:error, error}
-      :error ->
-        {:error, :unknown}
-    end
-  end
-
-  defp declare_consumer(channel, consumer) do
-    with :ok <- declare_exchange(channel,
-                                 consumer.exchange.name,
-                                 consumer.exchange.type,
-                                 consumer.exchange.options),
-         {:ok, _} <- declare_queue(channel,
-                                   consumer.queue.name,
-                                   consumer.queue.options),
-         :ok <- bind_queue(channel,
-                           consumer.queue.name,
-                           consumer.exchange.name,
-                           consumer.routing_keys) do
-      :ok
-    else
-      _ -> :error
-    end
   end
 end

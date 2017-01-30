@@ -12,6 +12,7 @@ defmodule ExKonsument.Producer do
   end
 
   def init(producer) do
+    Process.flag(:trap_exit, true)
     {:ok, channel} = setup_amqp_producer(producer)
     state = %{producer: producer, channel: channel}
     {:ok, state}
@@ -22,7 +23,7 @@ defmodule ExKonsument.Producer do
     connection_string = producer.connection_string
     with {:ok, connection} <- ExKonsument.open_connection(connection_string),
          {:ok, channel} = ExKonsument.open_channel(connection) do
-      Process.monitor(connection.pid)
+      Process.link(connection.pid)
       log_info producer, "Connected successfully!"
       {:ok, channel}
     else
@@ -81,5 +82,11 @@ defmodule ExKonsument.Producer do
 
   defp log_error(producer, message) do
     Logger.error "#{producer.exchange.name}: #{message}"
+  end
+
+  def terminate(_reason, state) do
+    if ExKonsument.connection_open?(state.channel.conn) do
+      ExKonsument.close_connection(state.channel.conn)
+    end
   end
 end

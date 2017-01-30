@@ -4,8 +4,8 @@ defmodule ExKonsument.ConsumerTest do
   import Mock
 
   test "it can be started" do
-    with_mock ExKonsument, message_queue_mocks do
-      {:ok, pid} = ExKonsument.Consumer.start_link(consumer)
+    with_mocks amqp_mocks(%{pid: self()}) do
+      {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
 
       assert Process.alive?(pid)
     end
@@ -14,16 +14,16 @@ defmodule ExKonsument.ConsumerTest do
   test "it can be named", %{test: test} do
     name = Module.concat(__MODULE__, test)
 
-    with_mock ExKonsument, message_queue_mocks do
-      {:ok, _} = ExKonsument.Consumer.start_link(consumer, name: name)
+    with_mocks amqp_mocks(%{pid: self()}) do
+      {:ok, _} = ExKonsument.Consumer.start_link(consumer(), name: name)
 
       assert Process.alive?(Process.whereis(name))
     end
   end
 
   test "it forwards message payloads and state to the handle function" do
-    with_mock ExKonsument, message_queue_mocks do
-      {:ok, pid} = ExKonsument.Consumer.start_link(consumer)
+    with_mocks amqp_mocks(%{pid: self()}) do
+      {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
       send pid, {:basic_consume_ok, nil}
       send pid, {:basic_deliver, Poison.encode!(%{test: "test"}), :opts}
 
@@ -32,60 +32,104 @@ defmodule ExKonsument.ConsumerTest do
   end
 
   test "it opens a connection with state" do
-    with_mock ExKonsument, message_queue_mocks do
-      {:ok, pid} = ExKonsument.Consumer.start_link(consumer)
+    connection = %{pid: self()}
+    channel = %{conn: connection}
+    with_mocks amqp_mocks(connection) do
+      {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
       send pid, {:basic_consume_ok, nil}
       send pid, {:basic_deliver, Poison.encode!(%{test: "test"}), :opts}
 
       assert_receive {%{"test" => "test"}, :opts, :state}
-      assert called ExKonsument.setup_consumer(consumer)
+
+      assert called ExKonsument.open_connection(:connection_string)
+      assert called ExKonsument.open_channel(%{pid: self()})
+      assert called ExKonsument.declare_exchange(channel,
+                                                 :exchange_name,
+                                                 :exchange_type,
+                                                 :exchange_options)
+      assert called ExKonsument.declare_queue(channel,
+                                              :queue_name,
+                                              :queue_options)
+      assert called ExKonsument.bind_queue(channel,
+                                           :queue_name,
+                                           :exchange_name,
+                                           ["testing"])
+      assert called ExKonsument.consume(channel,
+                                        :queue_name,
+                                        nil,
+                                        no_ack: true)
     end
   end
 
   test "it tries to connect when receiving a :connect message" do
-    with_mock ExKonsument, message_queue_mocks do
-      ExKonsument.Consumer.handle_info(:connect, %{consumer: consumer})
+    connection = %{pid: self()}
+    with_mocks amqp_mocks(connection) do
+      result = ExKonsument.Consumer.handle_info(:connect, %{consumer: consumer()})
 
-      assert called ExKonsument.setup_consumer(consumer)
+      expected_state = %{consumer: consumer(), channel: %{conn: connection}}
+
+      assert called ExKonsument.open_connection(:connection_string)
+      assert {:noreply, expected_state} == result
     end
   end
 
   test "it retries to connect when it failed" do
-    setup_consumer_error_mock = [setup_consumer: fn _ -> {:error, :failed} end]
-    with_mock ExKonsument, setup_consumer_error_mock do
-      {:ok, _state} = ExKonsument.Consumer.init(%{consumer: consumer})
+    with_mocks amqp_error_mocks() do
+      {:ok, _state} = ExKonsument.Consumer.init(%{consumer: consumer()})
 
       assert_receive :connect, 2000
-      assert called ExKonsument.setup_consumer(consumer)
+      assert called ExKonsument.open_connection(:connection_string)
     end
   end
 
   test "it shuts down when the connection dies" do
-    with_mock ExKonsument, message_queue_mocks do
-      {:ok, pid} = ExKonsument.Consumer.start_link(consumer)
-      send pid, {:DOWN, nil, :process, nil, nil}
-      Process.flag(:trap_exit, true)
+    {:ok, fake_connection} = Agent.start(fn -> nil end)
+    connection = %{pid: fake_connection}
+    with_mocks(amqp_mocks(connection)) do
+      {:ok, consumer_pid} = ExKonsument.Consumer.start_link(consumer())
 
-      assert_receive {:EXIT, _, :shutdown}
+      Process.unlink(consumer_pid)
+
+      Agent.stop(fake_connection)
+      :timer.sleep(100)
+      refute Process.alive?(consumer_pid)
     end
   end
 
   test "it shuts down when the queue is deleted" do
-    with_mock ExKonsument, message_queue_mocks do
-      {:ok, pid} = ExKonsument.Consumer.start_link(consumer)
-      send pid, {:basic_cancel, nil}
-      Process.flag(:trap_exit, true)
+    with_mocks amqp_mocks(%{pid: self()}) do
+      {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
+      Process.unlink(pid)
 
-      assert_receive {:EXIT, _, :shutdown}
+      send pid, {:basic_cancel, nil}
+
+      :timer.sleep(100)
+      refute Process.alive?(pid)
+    end
+  end
+
+  test "it closes connection when the consumer is stopped" do
+    connection = %{pid: self()}
+    with_mocks amqp_mocks(connection) do
+      {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
+      GenServer.stop(pid)
+      assert called ExKonsument.close_connection(connection)
     end
   end
 
   defp queue do
-    %ExKonsument.Queue{name: "queue"}
+    %ExKonsument.Queue{
+      name: :queue_name,
+      options: :queue_options
+    }
   end
 
   defp exchange do
-    %ExKonsument.Exchange{name: "exchange", type: :topic}
+    %ExKonsument.Exchange{
+      name: :exchange_name,
+      type: :exchange_type,
+      options: :exchange_options
+    }
   end
 
   defp handling_fn(test_pid) do
@@ -96,21 +140,32 @@ defmodule ExKonsument.ConsumerTest do
 
   defp consumer do
     %ExKonsument.Consumer{
-      queue: queue,
-      exchange: exchange,
+      queue: queue(),
+      exchange: exchange(),
       routing_keys: ["testing"],
-      handling_fn: handling_fn(self),
-      state: :state
+      handling_fn: handling_fn(self()),
+      state: :state,
+      connection_string: :connection_string
     }
   end
 
-  defp message_queue_mocks do
+  defp amqp_mocks(connection) do
     [
-      setup_consumer: &setup_consumer_mock/1
+      {ExKonsument, [], [open_connection: fn _ -> {:ok, connection} end]},
+      {ExKonsument, [], [open_channel: fn _ -> {:ok, %{conn: connection}} end]},
+      {ExKonsument, [], [declare_exchange: fn _, _, _, _ -> :ok end]},
+      {ExKonsument, [], [declare_queue: fn _, _, _ -> {:ok, :queue} end,
+                         bind_queue: fn _, _, _, _ -> :ok end]},
+      {ExKonsument, [], [consume: fn _, _, _, _ -> {:ok, :result} end]},
+      {ExKonsument, [], [close_connection: fn _ -> :ok end]},
+      {ExKonsument, [], [connection_open?: fn _ -> true end]}
     ]
   end
 
-  defp setup_consumer_mock(_) do
-    {:ok, %{pid: self}}
+  defp amqp_error_mocks() do
+    [
+      {ExKonsument, [], [open_connection: fn _ -> {:error, :reason} end]},
+      {ExKonsument, [], [connection_open?: fn _ -> false end]}
+    ]
   end
 end
