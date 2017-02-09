@@ -27,7 +27,7 @@ defmodule ExKonsument.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [{:amqp, "~> 0.1.5", hex: :amqp19},
+    [{:amqp, "~> 0.2.0-pre.1"},
      {:poison, "~> 2.2 or ~> 3.0"},
      {:credo, "~> 0.6.0", only: :dev},
      {:mock, "~> 0.2", only: :test}]
