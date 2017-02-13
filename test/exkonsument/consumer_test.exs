@@ -25,9 +25,28 @@ defmodule ExKonsument.ConsumerTest do
     with_mocks amqp_mocks(%{pid: self()}) do
       {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
       send pid, {:basic_consume_ok, nil}
-      send pid, {:basic_deliver, Poison.encode!(%{test: "test"}), :opts}
+      send pid, {:basic_deliver,
+                 Poison.encode!(%{test: "test"}),
+                 %{delivery_tag: :tag}}
 
-      assert_receive {%{"test" => "test"}, :opts, :state}
+      assert_receive {%{"test" => "test"}, %{delivery_tag: :tag}, :state}
+      assert_receive :ack
+      assert called ExKonsument.ack(%{conn: %{pid: self()}}, :tag)
+    end
+  end
+
+  test "it rejects messages when processing function does not return :ok" do
+    with_mocks amqp_mocks(%{pid: self()}) do
+      consumer = consumer(handling_fn: handling_fn(self(), :not_ok))
+      {:ok, pid} = ExKonsument.Consumer.start_link(consumer)
+      send pid, {:basic_consume_ok, nil}
+      send pid, {:basic_deliver,
+                 Poison.encode!(%{test: "test"}),
+                 %{delivery_tag: :tag}}
+
+      assert_receive {%{"test" => "test"}, %{delivery_tag: :tag}, :state}
+      assert_receive :reject
+      assert called ExKonsument.reject(%{conn: %{pid: self()}}, :tag)
     end
   end
 
@@ -37,9 +56,9 @@ defmodule ExKonsument.ConsumerTest do
     with_mocks amqp_mocks(connection) do
       {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
       send pid, {:basic_consume_ok, nil}
-      send pid, {:basic_deliver, Poison.encode!(%{test: "test"}), :opts}
+      send pid, {:basic_deliver, Poison.encode!(%{test: "test"}), %{delivery_tag: :tag}}
 
-      assert_receive {%{"test" => "test"}, :opts, :state}
+      assert_receive {%{"test" => "test"}, %{delivery_tag: :tag}, :state}
 
       assert called ExKonsument.open_connection(:connection_string)
       assert called ExKonsument.open_channel(%{pid: self()})
@@ -54,10 +73,7 @@ defmodule ExKonsument.ConsumerTest do
                                            :queue_name,
                                            :exchange_name,
                                            ["testing"])
-      assert called ExKonsument.consume(channel,
-                                        :queue_name,
-                                        nil,
-                                        no_ack: true)
+      assert called ExKonsument.consume(channel, :queue_name)
     end
   end
 
@@ -132,13 +148,19 @@ defmodule ExKonsument.ConsumerTest do
     }
   end
 
-  defp handling_fn(test_pid) do
+  defp handling_fn(test_pid, return_value \\ :ok) do
     fn payload, opts, state ->
       send test_pid, {payload, opts, state}
+      return_value
     end
   end
 
-  defp consumer do
+  defp consumer(opts \\ []) do
+    default_consumer()
+    |> Map.merge(Enum.into(opts, %{}))
+  end
+
+  defp default_consumer do
     %ExKonsument.Consumer{
       queue: queue(),
       exchange: exchange(),
@@ -150,22 +172,31 @@ defmodule ExKonsument.ConsumerTest do
   end
 
   defp amqp_mocks(connection) do
+    test_pid = self()
     [
-      {ExKonsument, [], [open_connection: fn _ -> {:ok, connection} end]},
-      {ExKonsument, [], [open_channel: fn _ -> {:ok, %{conn: connection}} end]},
-      {ExKonsument, [], [declare_exchange: fn _, _, _, _ -> :ok end]},
-      {ExKonsument, [], [declare_queue: fn _, _, _ -> {:ok, :queue} end,
-                         bind_queue: fn _, _, _, _ -> :ok end]},
-      {ExKonsument, [], [consume: fn _, _, _, _ -> {:ok, :result} end]},
-      {ExKonsument, [], [close_connection: fn _ -> :ok end]},
-      {ExKonsument, [], [connection_open?: fn _ -> true end]}
+      {ExKonsument, [], [open_connection: fn _ -> {:ok, connection} end,
+                         open_channel: fn _ -> {:ok, %{conn: connection}} end,
+                         declare_exchange: fn _, _, _, _ -> :ok end,
+                         declare_queue: fn _, _, _ -> {:ok, :queue} end,
+                         bind_queue: fn _, _, _, _ -> :ok end,
+                         consume: fn _, _ -> {:ok, :result} end,
+                         close_connection: fn _ -> :ok end,
+                         connection_open?: fn _ -> true end,
+                         ack: fn _, _ ->
+                           send test_pid, :ack
+                           :ok
+                         end,
+                         reject: fn _, _ ->
+                           send test_pid, :reject
+                           :reject
+                         end]}
     ]
   end
 
   defp amqp_error_mocks() do
     [
-      {ExKonsument, [], [open_connection: fn _ -> {:error, :reason} end]},
-      {ExKonsument, [], [connection_open?: fn _ -> false end]}
+      {ExKonsument, [], [open_connection: fn _ -> {:error, :reason} end,
+                         connection_open?: fn _ -> false end]}
     ]
   end
 end

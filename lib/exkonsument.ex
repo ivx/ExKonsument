@@ -43,4 +43,12 @@ defmodule ExKonsument do
   def consume(channel, queue, consumer_pid \\ nil, opts \\ []) do
     AMQP.Basic.consume(channel, queue, consumer_pid, opts)
   end
+
+  def ack(channel, delivery_tag, options \\ []) do
+    AMQP.Basic.ack(channel, delivery_tag, options)
+  end
+
+  def reject(channel, delivery_tag, options \\ []) do
+    AMQP.Basic.reject(channel, delivery_tag, options)
+  end
 end

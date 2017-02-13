@@ -33,10 +33,16 @@ defmodule ExKonsument.Consumer do
 
     case Poison.decode(payload) do
       {:ok, parsed_payload} ->
-        consumer.handling_fn.(parsed_payload, opts, consumer.state)
+        case consumer.handling_fn.(parsed_payload, opts, consumer.state) do
+          :ok -> ExKonsument.ack(state.channel, Map.get(opts, :delivery_tag))
+          _ ->
+            ExKonsument.reject(state.channel, Map.get(opts, :delivery_tag))
+            log_info consumer, "Message rejected!"
+        end
         log_info consumer, "Message handled!"
 
       {:error, _} ->
+        ExKonsument.reject(state.channel, Map.get(opts, :delivery_tag))
         log_error consumer, "Message could not be processed!"
     end
 
@@ -104,10 +110,7 @@ defmodule ExKonsument.Consumer do
          :ok <-
            declare_consumer(channel, consumer),
          {:ok, _} <-
-           ExKonsument.consume(channel,
-                               consumer.queue.name,
-                               nil,
-                               no_ack: true) do
+           ExKonsument.consume(channel, consumer.queue.name) do
       {:ok, channel}
     else
       {:error, error} ->
