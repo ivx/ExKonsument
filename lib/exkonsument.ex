@@ -13,7 +13,12 @@ defmodule ExKonsument do
   end
 
   def open_channel(connection) do
-    AMQP.Channel.open(connection)
+    case AMQP.Channel.open(connection) do
+      {:ok, channel} ->
+        AMQP.Basic.qos(channel, prefetch_count: 1)
+        {:ok, channel}
+      {:error, _} = error -> error
+    end
   end
 
   def declare_exchange(channel, exchange, type, opts \\ []) do

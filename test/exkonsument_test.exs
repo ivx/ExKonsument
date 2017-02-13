@@ -19,6 +19,20 @@ defmodule ExKonsumentTest do
     end
   end
 
+  test "opens channel with prefetch_count set to 1" do
+    with_mock AMQP.Connection, [open: fn _ -> {:ok, :conn} end] do
+      with_mock AMQP.Channel, [open: fn _ -> {:ok, :chan} end] do
+        with_mock AMQP.Basic, [qos: fn _, _ -> :ok end] do
+
+          {:ok, connection} = ExKonsument.open_connection("")
+          {:ok, channel} = ExKonsument.open_channel(connection)
+
+          assert called AMQP.Basic.qos(channel, prefetch_count: 1)
+        end
+      end
+    end
+  end
+
   test "closes a connection" do
     with_mock AMQP.Connection, [close: fn _ -> nil end] do
       ExKonsument.close_connection(:connection)
