@@ -23,11 +23,7 @@ defmodule ExKonsument.ConsumerTest do
 
   test "it forwards message payloads and state to the handle function" do
     with_mocks amqp_mocks(%{pid: self()}) do
-      {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
-      send pid, {:basic_consume_ok, nil}
-      send pid, {:basic_deliver,
-                 Poison.encode!(%{test: "test"}),
-                 %{delivery_tag: :tag}}
+    {:ok, _} = start_and_trigger_consumer(consumer(), %{delivery_tag: :tag})
 
       assert_receive {%{"test" => "test"}, %{delivery_tag: :tag}, :state}
       assert_receive :ack
@@ -35,18 +31,68 @@ defmodule ExKonsument.ConsumerTest do
     end
   end
 
-  test "it rejects messages when processing function does not return :ok" do
+  test "it requeues messages when processing function does not return :ok" do
     with_mocks amqp_mocks(%{pid: self()}) do
       consumer = consumer(handling_fn: handling_fn(self(), :not_ok))
-      {:ok, pid} = ExKonsument.Consumer.start_link(consumer)
-      send pid, {:basic_consume_ok, nil}
-      send pid, {:basic_deliver,
-                 Poison.encode!(%{test: "test"}),
-                 %{delivery_tag: :tag}}
+      Process.flag(:trap_exit, true)
+      {:ok, pid} = start_and_trigger_consumer(
+        consumer, %{delivery_tag: :tag, redelivered: false})
 
-      assert_receive {%{"test" => "test"}, %{delivery_tag: :tag}, :state}
+      assert_receive {%{"test" => "test"},
+                      %{delivery_tag: :tag, redelivered: false},
+                      :state}
       assert_receive :reject
-      assert called ExKonsument.reject(%{conn: %{pid: self()}}, :tag)
+      assert called ExKonsument.reject(
+        %{conn: %{pid: self()}}, :tag, requeue: true)
+      assert_receive {:EXIT, ^pid, {%ExKonsument.HandlingError{}, _}}
+    end
+  end
+
+  test "it rejects redelivered messages when processing function does not" <>
+    "return :ok" do
+    with_mocks amqp_mocks(%{pid: self()}) do
+      consumer = consumer(handling_fn: handling_fn(self(), :not_ok))
+      Process.flag(:trap_exit, true)
+      {:ok, pid} = start_and_trigger_consumer(
+        consumer, %{delivery_tag: :tag, redelivered: true})
+
+      assert_receive {%{"test" => "test"},
+                      %{delivery_tag: :tag, redelivered: true},
+                      :state}
+      assert_receive :reject
+      assert called ExKonsument.reject(
+        %{conn: %{pid: self()}}, :tag, requeue: false)
+      assert_receive {:EXIT, ^pid, {%ExKonsument.HandlingError{}, _}}
+    end
+  end
+
+  test "it requeues messages when an exception occurs" do
+    error_fn = fn _, _, _ -> raise "exception" end
+    with_mocks amqp_mocks(%{pid: self()}) do
+      consumer = consumer(handling_fn: error_fn)
+      Process.flag(:trap_exit, true)
+      {:ok, pid} = start_and_trigger_consumer(
+        consumer, %{delivery_tag: :tag, redelivered: false})
+
+      assert_receive :reject
+      assert called ExKonsument.reject(
+        %{conn: %{pid: self()}}, :tag, requeue: true)
+      assert_receive {:EXIT, ^pid, {%RuntimeError{message: "exception"}, _}}
+    end
+  end
+
+  test "it rejects redelivered messages when an exception occurs" do
+    error_fn = fn _, _, _ -> raise "exception" end
+    with_mocks amqp_mocks(%{pid: self()}) do
+      consumer = consumer(handling_fn: error_fn)
+      Process.flag(:trap_exit, true)
+      {:ok, pid} = start_and_trigger_consumer(
+        consumer, %{delivery_tag: :tag, redelivered: true})
+
+      assert_receive :reject
+      assert called ExKonsument.reject(
+        %{conn: %{pid: self()}}, :tag, requeue: false)
+      assert_receive {:EXIT, ^pid, {%RuntimeError{message: "exception"}, _}}
     end
   end
 
@@ -56,7 +102,9 @@ defmodule ExKonsument.ConsumerTest do
     with_mocks amqp_mocks(connection) do
       {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
       send pid, {:basic_consume_ok, nil}
-      send pid, {:basic_deliver, Poison.encode!(%{test: "test"}), %{delivery_tag: :tag}}
+      send pid, {:basic_deliver,
+                 Poison.encode!(%{test: "test"}),
+                 %{delivery_tag: :tag}}
 
       assert_receive {%{"test" => "test"}, %{delivery_tag: :tag}, :state}
 
@@ -80,7 +128,8 @@ defmodule ExKonsument.ConsumerTest do
   test "it tries to connect when receiving a :connect message" do
     connection = %{pid: self()}
     with_mocks amqp_mocks(connection) do
-      result = ExKonsument.Consumer.handle_info(:connect, %{consumer: consumer()})
+      result = ExKonsument.Consumer.handle_info(
+        :connect, %{consumer: consumer()})
 
       expected_state = %{consumer: consumer(), channel: %{conn: connection}}
 
@@ -186,7 +235,7 @@ defmodule ExKonsument.ConsumerTest do
                            send test_pid, :ack
                            :ok
                          end,
-                         reject: fn _, _ ->
+                         reject: fn _, _, _ ->
                            send test_pid, :reject
                            :reject
                          end]}
@@ -198,5 +247,12 @@ defmodule ExKonsument.ConsumerTest do
       {ExKonsument, [], [open_connection: fn _ -> {:error, :reason} end,
                          connection_open?: fn _ -> false end]}
     ]
+  end
+
+  defp start_and_trigger_consumer(consumer, message_options) do
+    {:ok, pid} = ExKonsument.Consumer.start_link(consumer)
+    send pid, {:basic_consume_ok, nil}
+    send pid, {:basic_deliver, Poison.encode!(%{test: "test"}), message_options}
+    {:ok, pid}
   end
 end

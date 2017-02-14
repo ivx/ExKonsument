@@ -28,22 +28,16 @@ defmodule ExKonsument.Consumer do
   end
 
   def handle_info({:basic_deliver, payload, opts}, state) do
-    consumer = state.consumer
-    log_info consumer, "Message received!"
+    log_info state.consumer, "Message received!"
 
     case Poison.decode(payload) do
       {:ok, parsed_payload} ->
-        case consumer.handling_fn.(parsed_payload, opts, consumer.state) do
-          :ok -> ExKonsument.ack(state.channel, Map.get(opts, :delivery_tag))
-          _ ->
-            ExKonsument.reject(state.channel, Map.get(opts, :delivery_tag))
-            log_info consumer, "Message rejected!"
-        end
-        log_info consumer, "Message handled!"
+        consume_message(parsed_payload, opts, state)
 
       {:error, _} ->
-        ExKonsument.reject(state.channel, Map.get(opts, :delivery_tag))
-        log_error consumer, "Message could not be processed!"
+        ExKonsument.reject(
+          state.channel, Map.get(opts, :delivery_tag), requeue: false)
+        log_error state.consumer, "Message could not be processed!"
     end
 
     {:noreply, state}
@@ -66,6 +60,29 @@ defmodule ExKonsument.Consumer do
   def handle_info({:DOWN, _, :process, _, _}, state) do
     log_info state.consumer, "Connection died, committing suicide."
     {:stop, :shutdown, state}
+  end
+
+  defp handle_message(consumer, payload, opts) do
+    case consumer.handling_fn.(payload, opts, consumer.state) do
+      :ok -> :ok
+      _ -> raise ExKonsument.HandlingError
+    end
+  end
+
+  defp consume_message(message, opts, state) do
+    try do
+      :ok = handle_message(state.consumer, message, opts)
+      ExKonsument.ack(state.channel, Map.get(opts, :delivery_tag))
+      log_info state.consumer, "Message handled!"
+    rescue
+      exception ->
+        ExKonsument.reject(
+          state.channel,
+          Map.get(opts, :delivery_tag),
+          requeue: not Map.get(opts, :redelivered))
+        log_info state.consumer, "Message rejected!"
+        raise exception
+    end
   end
 
   defp connect(state) do
