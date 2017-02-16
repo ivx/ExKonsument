@@ -148,37 +148,49 @@ defmodule ExKonsument.ConsumerTest do
   end
 
   test "it shuts down when the connection dies" do
-    {:ok, fake_connection} = Agent.start(fn -> nil end)
+    Process.flag(:trap_exit, true)
+    {:ok, fake_connection} = Agent.start_link(fn -> nil end)
     connection = %{pid: fake_connection}
     with_mocks(amqp_mocks(connection)) do
       {:ok, consumer_pid} = ExKonsument.Consumer.start_link(consumer())
 
-      Process.unlink(consumer_pid)
-
       Agent.stop(fake_connection)
-      :timer.sleep(100)
-      refute Process.alive?(consumer_pid)
+      assert_receive {:EXIT, ^consumer_pid, :shutdown}
     end
   end
 
   test "it shuts down when the queue is deleted" do
+    Process.flag(:trap_exit, true)
     with_mocks amqp_mocks(%{pid: self()}) do
       {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
-      Process.unlink(pid)
 
       send pid, {:basic_cancel, nil}
 
-      :timer.sleep(100)
-      refute Process.alive?(pid)
+      assert_receive {:EXIT, ^pid, :shutdown}
     end
   end
 
-  test "it closes connection when the consumer is stopped" do
-    connection = %{pid: self()}
+  test "it closes connection when the consumer is killed" do
+    Process.flag(:trap_exit, true)
+    {:ok, agent} = Agent.start_link(fn -> %{} end)
+    connection = %{pid: agent}
+    with_mocks amqp_mocks(connection) do
+      {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
+      Process.exit(pid, :test)
+      assert_receive {:EXIT, ^agent, :test}
+      assert_receive {:EXIT, ^pid, :test}
+    end
+  end
+
+  test "it closes connection when the consumer is gracefully stopped" do
+    Process.flag(:trap_exit, true)
+    {:ok, agent} = Agent.start_link(fn -> %{} end)
+    connection = %{pid: agent}
     with_mocks amqp_mocks(connection) do
       {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
       GenServer.stop(pid)
-      assert called ExKonsument.close_connection(connection)
+      assert_receive {:EXIT, ^pid, :normal}
+      assert_receive {:EXIT, ^agent, :shutdown}
     end
   end
 

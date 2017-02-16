@@ -17,7 +17,6 @@ defmodule ExKonsument.Consumer do
   end
 
   def init(state) do
-    Process.flag(:trap_exit, true)
     new_state = connect(state)
     {:ok, new_state}
   end
@@ -120,10 +119,12 @@ defmodule ExKonsument.Consumer do
   defp setup_consumer(consumer) do
     with {:ok, connection} <-
            ExKonsument.open_connection(consumer.connection_string),
-         {:ok, channel} <-
-           ExKonsument.open_channel(connection),
          true <-
            Process.link(connection.pid),
+         _ <-
+           Process.monitor(connection.pid),
+         {:ok, channel} <-
+           ExKonsument.open_channel(connection),
          :ok <-
            declare_consumer(channel, consumer),
          {:ok, _} <-
@@ -159,5 +160,6 @@ defmodule ExKonsument.Consumer do
     if ExKonsument.connection_open?(state.channel.conn) do
       ExKonsument.close_connection(state.channel.conn)
     end
+    Process.exit(state.channel.conn.pid, :shutdown)
   end
 end
