@@ -21,6 +21,10 @@ defmodule ExKonsument do
     end
   end
 
+  def close_channel(channel) do
+    AMQP.Channel.close(channel)
+  end
+
   def declare_exchange(channel, exchange, type, opts \\ []) do
     AMQP.Exchange.declare(channel, exchange, type, opts)
   end

@@ -29,6 +29,7 @@ defmodule ExKonsument.Mixfile do
   defp deps do
     [{:amqp, "~> 0.2.0-pre.1"},
      {:poison, "~> 2.2 or ~> 3.0"},
+     {:connection, "~> 1.0"},
      {:credo, "~> 0.6.0", only: :dev},
      {:mock, "~> 0.2", only: :test}]
   end
