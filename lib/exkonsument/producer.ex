@@ -5,75 +5,57 @@ defmodule ExKonsument.Producer do
   require Logger
 
   defstruct exchange: nil,
-            connection_string: nil
+            connection: nil
 
-  def start_link(producer, opts \\ []) do
+  def start_link(%ExKonsument.Producer{} = producer, opts \\ []) do
     GenServer.start_link(__MODULE__, producer, opts)
   end
 
   def init(producer) do
-    Process.flag(:trap_exit, true)
-    {:ok, channel} = setup_amqp_producer(producer)
-    state = %{producer: producer, channel: channel}
-    {:ok, state}
+    send self(), :connect
+    {:ok, %{producer: producer}}
   end
 
-  defp setup_amqp_producer(%ExKonsument.Producer{} = producer) do
-    log_info producer, "Producer trying to connect to RabbitMQ..."
-    connection_string = producer.connection_string
-    with {:ok, connection} <- ExKonsument.open_connection(connection_string),
-         {:ok, channel} = ExKonsument.open_channel(connection) do
-      Process.link(connection.pid)
-      log_info producer, "Connected successfully!"
-      {:ok, channel}
-    else
-      {:error, msg} ->
-        log_error(producer, msg)
-        :timer.send_after(1000, :connect)
-    end
+  def publish(pid, routing_key, payload) do
+    GenServer.call(pid, {:publish, routing_key, payload})
   end
 
-  def publish(pid, payload, routing_key) do
-    GenServer.call(pid, {:publish, payload, routing_key})
-  end
-
-  def handle_call({:publish, payload, routing_key}, _, state) do
-    result = send_event(
+  def handle_call({:publish, routing_key, payload}, _, state) do
+    result = ExKonsument.publish(
       state.channel,
-      state.producer.exchange,
+      state.producer.exchange.name,
       routing_key,
-      payload
-    )
+      Poison.encode!(payload))
 
     {:reply, result, state}
   end
 
-  defp send_event(channel, exchange, routing_key, payload) do
-    :ok = ExKonsument.declare_exchange(
+  def handle_info(:connect, %{producer: producer} = state) do
+    log_info producer, "Producer trying to get channel..."
+    case ExKonsument.Connection.open_channel(producer.connection) do
+      {:ok, channel} ->
+        log_info producer, "Got channel!"
+        :ok = declare_exchange(channel, producer.exchange)
+        {:noreply, Map.put(state, :channel, channel)}
+
+      _ ->
+        log_error producer, "Error getting channel"
+        :timer.send_after(2000, :connect)
+        {:noreply, state}
+    end
+  end
+
+  def handle_info({:channel_closed, _channel}, state) do
+    send self(), :connect
+    {:noreply, state}
+  end
+
+  defp declare_exchange(channel, exchange) do
+    ExKonsument.declare_exchange(
       channel,
       exchange.name,
       exchange.type,
-      exchange.options
-    )
-    ExKonsument.publish(
-      channel,
-      exchange.name,
-      routing_key,
-      Poison.encode!(payload))
-  end
-
-  def handle_info(:connect, state) do
-    {:ok, channel} = state
-    |> Map.get(:producer)
-    |> setup_amqp_producer
-
-    new_state = Map.put(state, :channel, channel)
-    {:noreply, new_state}
-  end
-
-  def handle_info({:DOWN, _, :process, _, _}, state) do
-    log_info state.producer, "Connection died, committing suicide."
-    {:stop, :shutdown, state}
+      exchange.options)
   end
 
   defp log_info(producer, message) do
@@ -82,11 +64,5 @@ defmodule ExKonsument.Producer do
 
   defp log_error(producer, message) do
     Logger.error "#{producer.exchange.name}: #{message}"
-  end
-
-  def terminate(_reason, state) do
-    if ExKonsument.connection_open?(state.channel.conn) do
-      ExKonsument.close_connection(state.channel.conn)
-    end
   end
 end

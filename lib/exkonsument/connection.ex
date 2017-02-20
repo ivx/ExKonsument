@@ -28,29 +28,45 @@ defmodule ExKonsument.Connection do
   end
 
   def disconnect(info, state) do
-    {:connect, info, state}
+    close_channels(state[:channels])
+    new_state = state
+    |> Map.put(:connection, nil)
+    |> Map.put(:channels, %{})
+    {:connect, info, new_state}
+  end
+
+  defp close_channels(nil), do: nil
+  defp close_channels(channels) do
+    Enum.each(channels, fn {mon_ref, {channel, from}} ->
+      Process.demonitor(mon_ref)
+      send from, {:channel_closed, channel}
+    end)
   end
 
   def handle_call(:open_channel, {from, _ref}, state) do
-    case ExKonsument.open_channel(state[:connection]) do
-      {:ok, channel} ->
-        mon_ref = Process.monitor(from)
-        channels = Map.put(state.channels, mon_ref, channel)
-        {:reply, {:ok, channel}, %{state | channels: channels}}
-      other ->
-        {:reply, other, state}
+    if state[:connection] do
+      case ExKonsument.open_channel(state[:connection]) do
+        {:ok, channel} ->
+          mon_ref = Process.monitor(from)
+          channels = Map.put(state.channels, mon_ref, {channel, from})
+          {:reply, {:ok, channel}, %{state | channels: channels}}
+        other ->
+          {:reply, other, state}
+      end
+    else
+      {:reply, :error, state}
     end
   end
 
   def handle_info({:DOWN, _ref, :process, conn, reason},
                   %{connection: %{pid: conn}} = state) do
-    {:disconnect, {:error, reason}, Map.delete(state, :connection)}
+    {:disconnect, {:error, reason}, state}
   end
 
   def handle_info({:DOWN, ref, :process, _pid, _reason}, state) do
     case state.channels[ref] do
       nil -> {:noreply, state}
-      channel ->
+      {channel, _from} ->
         ExKonsument.close_channel(channel)
         channels = Map.delete(state.channels, ref)
         {:noreply, %{state | channels: channels}}
@@ -58,7 +74,7 @@ defmodule ExKonsument.Connection do
   end
 
   def terminate(_, state) do
-    if state[:connection] do
+    if state[:connection] && Process.alive?(state.connection.pid) do
       ExKonsument.close_connection(state[:connection])
     end
   end

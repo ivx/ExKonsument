@@ -77,7 +77,27 @@ defmodule ExKonsument.ConnectionTest do
       {:ok, pid} = ExKonsument.Connection.start_link
       assert_receive {:open_connection, "amqp://localhost:5672"}
       :error = ExKonsument.Connection.open_channel(pid)
-      assert_receive {:open_channel, nil}
+      refute_receive {:open_channel, nil}
+    end
+  end
+
+  test "it closes channels when the connection dies" do
+    {:ok, connection} = Agent.start(fn -> %{} end)
+    {:ok, channel} = Agent.start(fn -> %{} end)
+    with_mock ExKonsument, [open_connection:
+                              success_connection_mock(self(), connection),
+                            close_connection: close_connection_mock(self()),
+                            open_channel: open_channel_mock(self(), channel),
+                            close_channel: close_channel_mock(self())] do
+      {:ok, pid} = ExKonsument.Connection.start_link
+      assert_receive {:open_connection, "amqp://localhost:5672"}
+
+      TestProducer.start_link(self(), pid)
+
+      assert_receive {:open_channel, %{pid: ^connection}}
+      assert_receive :done
+      Process.exit(connection, :shutdown)
+      assert_receive {:channel_closed, %{pid: ^channel}}
     end
   end
 
@@ -155,5 +175,25 @@ defmodule ExKonsument.ConnectionTest do
       send pid, {:close_channel, channel}
       :ok
     end
+  end
+end
+
+defmodule TestProducer do
+  use GenServer
+
+  def start_link(test_pid, connection) do
+    GenServer.start_link(
+      __MODULE__, %{test_pid: test_pid, connection: connection}, [])
+  end
+
+  def init(state) do
+    {:ok, channel} = ExKonsument.Connection.open_channel(state.connection)
+    send state.test_pid, :done
+    {:ok, Map.put(state, :channel, channel)}
+  end
+
+  def handle_info(msg, state) do
+    send state.test_pid, msg
+    {:noreply, state}
   end
 end
