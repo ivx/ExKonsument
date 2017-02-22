@@ -15,11 +15,12 @@ defmodule ExKonsument.Connection do
   end
 
   def connect(_, state) do
+    Logger.info("Trying to connect...")
     case ExKonsument.open_connection(connection_string()) do
       {:ok, conn} ->
+        Logger.info("Connected successfully")
         Process.monitor(conn.pid)
-        state =
-          state |> Map.put(:connection, conn)
+        state = state |> Map.put(:connection, conn)
         {:ok, state}
       {:error, reason} ->
         Logger.error("Connection failed", error: reason)
@@ -28,6 +29,7 @@ defmodule ExKonsument.Connection do
   end
 
   def disconnect(info, state) do
+    Logger.info("Disconnecting")
     close_channels(state[:channels])
     new_state = state
     |> Map.put(:connection, nil)
@@ -47,10 +49,12 @@ defmodule ExKonsument.Connection do
     if state[:connection] do
       case ExKonsument.open_channel(state[:connection]) do
         {:ok, channel} ->
+          Logger.info("Opened channel for #{inspect from}")
           mon_ref = Process.monitor(from)
           channels = Map.put(state.channels, mon_ref, {channel, from})
           {:reply, {:ok, channel}, %{state | channels: channels}}
         other ->
+          Logger.error("Failed to open channel for #{inspect from}")
           {:reply, other, state}
       end
     else
@@ -64,9 +68,13 @@ defmodule ExKonsument.Connection do
   end
 
   def handle_info({:DOWN, ref, :process, _pid, _reason}, state) do
+    Logger.info("Client died, closing channel...")
     case state.channels[ref] do
-      nil -> {:noreply, state}
-      {channel, _from} ->
+      nil ->
+        Logger.info("No channel found")
+        {:noreply, state}
+      {channel, from} ->
+        Logger.info("Closed channel of #{inspect from}")
         ExKonsument.close_channel(channel)
         channels = Map.delete(state.channels, ref)
         {:noreply, %{state | channels: channels}}

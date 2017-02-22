@@ -12,8 +12,7 @@ defmodule ExKonsument.Consumer do
             state: nil
 
   def start_link(consumer, opts \\ []) do
-    GenServer.start_link(
-      __MODULE__, %{consumer: consumer}, opts)
+    GenServer.start_link(__MODULE__, %{consumer: consumer}, opts)
   end
 
   def init(state) do
@@ -32,6 +31,7 @@ defmodule ExKonsument.Consumer do
     case Poison.decode(payload) do
       {:ok, parsed_payload} ->
         consume_message(parsed_payload, opts, state)
+        log_info state.consumer, "Message handled!"
 
       {:error, _} ->
         ExKonsument.reject(
@@ -57,7 +57,7 @@ defmodule ExKonsument.Consumer do
   end
 
   def handle_info({:channel_closed, _channel}, state) do
-    log_info state.consumer, "Received :channel_closed, reconnecting"
+    log_info state.consumer, "Channel was closed"
     send self(), :connect
     {:noreply, state}
   end
@@ -73,14 +73,14 @@ defmodule ExKonsument.Consumer do
     try do
       :ok = handle_message(state.consumer, message, opts)
       ExKonsument.ack(state.channel, Map.get(opts, :delivery_tag))
-      log_info state.consumer, "Message handled!"
     rescue
       exception ->
         ExKonsument.reject(
           state.channel,
           Map.get(opts, :delivery_tag),
           requeue: not Map.get(opts, :redelivered))
-        log_info state.consumer, "Message rejected!"
+        log_info state.consumer,
+          "Message rejected! requeued: #{not Map.get(opts, :redelivered)}"
         raise exception
     end
   end
@@ -97,54 +97,54 @@ defmodule ExKonsument.Consumer do
   end
 
   defp setup_amqp_consumer(consumer) do
-    log_info consumer, "Trying to connect to RabbitMQ..."
+    log_info consumer, "Trying to setup consumer..."
     case setup_consumer(consumer) do
       {:ok, channel} ->
-        log_info consumer, "Connected successfully!"
+        log_info consumer, "Setup successful!"
         {:ok, channel}
 
       {:error, msg} ->
-        log_error(consumer, msg)
+        log_error(consumer, "Setup failed! reason: #{msg}")
         :timer.send_after(1000, :connect)
     end
   end
 
   defp setup_consumer(%{connection: connection} = consumer) do
     with {:ok, channel} <- ExKonsument.Connection.open_channel(connection),
-         :ok <- declare_consumer(channel, consumer),
+         :ok <- declare_exchange(channel, consumer.exchange),
+         {:ok, _} <- declare_queue(channel, consumer.queue),
+         :ok <- bind_queue(channel, consumer),
          {:ok, _} <- ExKonsument.consume(channel, consumer.queue.name) do
       {:ok, channel}
     else
-      {:error, error} ->
-        {:error, error}
-      :error ->
-        {:error, :unknown}
+      {:error, error} -> {:error, error}
+      _ -> {:error, :unknown}
     end
   end
 
-  defp declare_consumer(channel, consumer) do
-    with :ok <- ExKonsument.declare_exchange(channel,
-                                 consumer.exchange.name,
-                                 consumer.exchange.type,
-                                 consumer.exchange.options),
-         {:ok, _} <- ExKonsument.declare_queue(channel,
-                                   consumer.queue.name,
-                                   consumer.queue.options),
-         :ok <- ExKonsument.bind_queue(channel,
-                                       consumer.queue.name,
-                                       consumer.exchange.name,
-                                       consumer.routing_keys) do
-      :ok
-    else
-      _ -> :error
-    end
+  defp declare_exchange(channel, exchange) do
+    ExKonsument.declare_exchange(channel,
+                                 exchange.name,
+                                 exchange.type,
+                                 exchange.options)
+  end
+
+  defp declare_queue(channel, queue) do
+    ExKonsument.declare_queue(channel, queue.name, queue.options)
+  end
+
+  defp bind_queue(channel, consumer) do
+    ExKonsument.bind_queue(channel,
+                           consumer.queue.name,
+                           consumer.exchange.name,
+                           consumer.routing_keys)
   end
 
   defp log_info(consumer, message) do
-    Logger.info "#{consumer.queue.name}: #{message}"
+    Logger.info "Consumer '#{consumer.queue.name}': #{message}"
   end
 
   defp log_error(consumer, message) do
-    Logger.error "#{consumer.queue.name}: #{message}"
+    Logger.error "Consumer '#{consumer.queue.name}': #{message}"
   end
 end

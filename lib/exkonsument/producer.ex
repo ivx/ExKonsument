@@ -31,7 +31,7 @@ defmodule ExKonsument.Producer do
   end
 
   def handle_info(:connect, %{producer: producer} = state) do
-    log_info producer, "Producer trying to get channel..."
+    log_info producer, "Trying to get channel..."
     case ExKonsument.Connection.open_channel(producer.connection) do
       {:ok, channel} ->
         log_info producer, "Got channel!"
@@ -46,6 +46,7 @@ defmodule ExKonsument.Producer do
   end
 
   def handle_info({:channel_closed, _channel}, state) do
+    log_info state.producer, "Channel was closed"
     send self(), :connect
     {:noreply, state}
   end
@@ -59,10 +60,10 @@ defmodule ExKonsument.Producer do
   end
 
   defp log_info(producer, message) do
-    Logger.info "#{producer.exchange.name}: #{message}"
+    Logger.info "Producer '#{producer.exchange.name}': #{message}"
   end
 
   defp log_error(producer, message) do
-    Logger.error "#{producer.exchange.name}: #{message}"
+    Logger.error "Producer '#{producer.exchange.name}': #{message}"
   end
 end
