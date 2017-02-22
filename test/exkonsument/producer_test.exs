@@ -4,84 +4,95 @@ defmodule ExKonsument.ProducerTest do
   import Mock
 
   test "it can be started" do
-    {:ok, pid} = ExKonsument.Producer.start_link(producer())
+    with_mocks message_queue_mocks() do
+      with_mocks exkonsument_connection_mocks() do
+        {:ok, pid} = ExKonsument.Producer.start_link(producer())
 
-    assert Process.alive?(pid)
+        assert_receive {:open_channel, _}
+        assert Process.alive?(pid)
+      end
+    end
   end
 
   test "it can be named", %{test: test} do
     name = Module.concat(__MODULE__, test)
 
-    {:ok, _} = ExKonsument.Producer.start_link(producer(), name: name)
-
-    assert Process.alive?(Process.whereis(name))
-  end
-
-  test "it opens a connection on startup" do
     with_mocks message_queue_mocks() do
-      {:ok, pid} = ExKonsument.Producer.start_link(producer())
+      with_mocks exkonsument_connection_mocks() do
+        {:ok, pid} = ExKonsument.Producer.start_link(producer(), name: name)
 
-      assert called ExKonsument.open_connection(producer().connection_string)
-      assert called ExKonsument.open_channel(%{pid: self()})
-      assert Process.alive?(pid)
+        assert Process.alive?(Process.whereis(name))
+        GenServer.stop(pid)
+      end
     end
   end
 
-  test "it tries to connect when receiving a :connect message" do
+  test "it starts up and gets a channel" do
     with_mocks message_queue_mocks() do
-      {:noreply, new_state} = ExKonsument.Producer.handle_info(
-        :connect, %{producer: producer(), channel: nil})
+      with_mocks exkonsument_connection_mocks() do
+        {:ok, pid} = ExKonsument.Producer.start_link(producer())
 
-      connection = %{pid: self()}
-      assert %{producer: producer(), channel: %{conn: connection}} == new_state
-      assert called ExKonsument.open_connection(producer().connection_string)
-      assert called ExKonsument.open_channel(connection)
+        assert_receive {:open_channel, _}
+        assert Process.alive?(pid)
+      end
     end
   end
 
-  test "it retries to connect when it failed" do
-    with_mocks message_queue_error_mocks() do
-      {:ok, _state} = ExKonsument.Producer.init(producer())
+  test "it retries to get a channel when it failed" do
+    with_mocks message_queue_mocks() do
+      with_mock ExKonsument.Connection,
+                [open_channel: error_channel_mock(self()),
+                 start_link: fn -> {:ok, :connection} end] do
 
-      assert_receive :connect, 2000
-      assert called ExKonsument.open_connection(producer().connection_string)
+        {:ok, _pid} = ExKonsument.Producer.start_link(producer())
+        assert_receive {:open_channel, :connection}
+        assert_receive {:open_channel, :connection}, 3000
+      end
     end
   end
 
-  test "it shuts down when the connection dies" do
+  test "it startsup, gets a channel and declares an exchange" do
     with_mocks message_queue_mocks() do
-      {:ok, pid} = ExKonsument.Producer.start_link(producer())
-      Process.unlink(pid)
+      with_mocks exkonsument_connection_mocks() do
+        {:ok, pid} = ExKonsument.Producer.start_link(producer())
 
-      send pid, {:DOWN, nil, :process, nil, nil}
-
-      :timer.sleep(100)
-      refute Process.alive?(pid)
+        assert_receive {:declare_exchange, %{pid: _}, "exchange", :topic, []}
+        assert Process.alive?(pid)
+      end
     end
   end
 
   test "it publishes a payload to the exchange" do
-    connection = %{pid: self()}
-    with_mocks message_queue_mocks(connection) do
-      {:ok, pid} = ExKonsument.Producer.start_link(producer())
+    with_mocks message_queue_mocks() do
+      with_mocks exkonsument_connection_mocks() do
+        {:ok, pid} = ExKonsument.Producer.start_link(producer())
 
-      payload = %{test: :payload}
-      ExKonsument.Producer.publish(pid, payload, :routing_key)
+        payload = %{test: :payload}
+        ExKonsument.Producer.publish(pid, :routing_key, payload)
 
-      channel = %{conn: connection}
-      assert called ExKonsument.declare_exchange(
-        channel, "exchange", :topic, [])
-      assert called ExKonsument.publish(
-        channel, "exchange", :routing_key, Poison.encode!(payload))
+        expected_payload = Poison.encode!(payload)
+        assert_receive {
+          :publish, _, "exchange", :routing_key, ^expected_payload}
+      end
     end
   end
 
-  test "it closes connection when the producer is stopped" do
-    connection = %{pid: self()}
-    with_mocks message_queue_mocks(connection) do
-      {:ok, producer_pid} = ExKonsument.Producer.start_link(producer())
-      GenServer.stop(producer_pid)
-      assert called ExKonsument.close_connection(connection)
+  test "it tries to reconnect when the channel dies" do
+    {:ok, channel} = Agent.start(fn -> [] end)
+    with_mock ExKonsument, [declare_exchange: fn _, _, _, _ -> :ok end,
+                            open_connection: &open_connection_mock/1] do
+      with_mock ExKonsument.Connection,
+        [open_channel: open_channel_mock(self(), %{pid: channel}),
+         start_link: start_link_mock()] do
+
+        {:ok, pid} = ExKonsument.Producer.start_link(producer())
+        assert_receive {:open_channel, _}
+
+        send pid, {:channel_closed, %{pid: channel}}
+
+        assert_receive {:open_channel, _}
+        GenServer.stop(pid)
+      end
     end
   end
 
@@ -90,27 +101,73 @@ defmodule ExKonsument.ProducerTest do
   end
 
   defp producer do
+    {:ok, pid} = ExKonsument.Connection.start_link
     %ExKonsument.Producer{
       exchange: exchange(),
-      connection_string: "amqp://guest:guest@localhost"
+      connection: pid
     }
   end
 
-  defp message_queue_mocks, do: message_queue_mocks(%{pid: self()})
-  defp message_queue_mocks(connection) do
+  defp message_queue_mocks() do
     [
-      {ExKonsument, [], [open_connection: fn _ -> {:ok, connection} end]},
-      {ExKonsument, [], [open_channel: fn _ -> {:ok, %{conn: connection}} end]},
-      {ExKonsument, [], [declare_exchange: fn _, _, _, _ -> :ok end]},
-      {ExKonsument, [], [publish: fn _, _, _, _ -> :ok end]},
-      {ExKonsument, [], [close_connection: fn _ -> :ok end]},
-      {ExKonsument, [], [connection_open?: fn _ -> true end]}
+      {ExKonsument, [], [declare_exchange: declare_exchange_mock(self())]},
+      {ExKonsument, [], [publish: publish_mock(self())]},
+      {ExKonsument, [], [open_connection: &open_connection_mock/1]},
+      {ExKonsument, [], [close_connection: fn _ -> :ok end]}
     ]
   end
 
-  defp message_queue_error_mocks() do
+  defp publish_mock(pid) do
+    fn channel, exchange, routing_key, payload ->
+      send pid, {:publish, channel, exchange, routing_key, payload}
+      :ok
+    end
+  end
+
+  defp open_connection_mock(_) do
+    {:ok, pid} = Agent.start(fn -> %{} end)
+    {:ok, %{pid: pid}}
+  end
+
+  defp declare_exchange_mock(pid) do
+    fn channel, exchange, type, opts ->
+      send pid, {:declare_exchange, channel, exchange, type, opts}
+      :ok
+    end
+  end
+
+  defp exkonsument_connection_mocks() do
     [
-      {ExKonsument, [], [open_connection: fn _ -> {:error, :reason} end]}
+      {ExKonsument.Connection, [], [open_channel: open_channel_mock(self())]},
+      {ExKonsument.Connection, [], [start_link: start_link_mock()]}
     ]
+  end
+
+  defp start_link_mock do
+    fn -> {:ok, default_connection()} end
+  end
+
+  defp default_connection do
+    {:ok, agent} = Agent.start_link(fn -> [] end)
+    agent
+  end
+
+  defp open_channel_mock(pid, channel \\ default_channel()) do
+    fn connection ->
+      send pid, {:open_channel, connection}
+      {:ok, channel}
+    end
+  end
+
+  defp default_channel do
+    {:ok, agent} = Agent.start_link(fn -> [] end)
+    %{pid: agent}
+  end
+
+  defp error_channel_mock(pid) do
+    fn connection ->
+      send pid, {:open_channel, connection}
+      {:error, :reason}
+    end
   end
 end

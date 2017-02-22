@@ -21,6 +21,10 @@ defmodule ExKonsument do
     end
   end
 
+  def close_channel(channel) do
+    AMQP.Channel.close(channel)
+  end
+
   def declare_exchange(channel, exchange, type, opts \\ []) do
     AMQP.Exchange.declare(channel, exchange, type, opts)
   end
@@ -30,7 +34,11 @@ defmodule ExKonsument do
   end
 
   def publish(channel, exchange, routing_key, payload) do
-    AMQP.Basic.publish(channel, exchange, routing_key, payload)
+    if Process.alive?(channel.pid) do
+      AMQP.Basic.publish(channel, exchange, routing_key, payload)
+    else
+      :error
+    end
   end
 
   def bind_queue(channel, queue, exchange, routing_keys) do
