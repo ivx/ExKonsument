@@ -8,7 +8,7 @@ defmodule ExKonsument.Consumer do
             exchange: nil,
             routing_keys: nil,
             handling_fn: nil,
-            connection_string: nil,
+            connection: nil,
             state: nil
 
   def start_link(consumer, opts \\ []) do
@@ -56,9 +56,10 @@ defmodule ExKonsument.Consumer do
     {:noreply, state}
   end
 
-  def handle_info({:DOWN, _, :process, _, _}, state) do
-    log_info state.consumer, "Connection died, committing suicide."
-    {:stop, :shutdown, state}
+  def handle_info({:channel_closed, _channel}, state) do
+    log_info state.consumer, "Received :channel_closed, reconnecting"
+    send self(), :connect
+    {:noreply, state}
   end
 
   defp handle_message(consumer, payload, opts) do
@@ -108,27 +109,10 @@ defmodule ExKonsument.Consumer do
     end
   end
 
-  defp log_info(consumer, message) do
-    Logger.info "#{consumer.queue.name}: #{message}"
-  end
-
-  defp log_error(consumer, message) do
-    Logger.error "#{consumer.queue.name}: #{message}"
-  end
-
-  defp setup_consumer(consumer) do
-    with {:ok, connection} <-
-           ExKonsument.open_connection(consumer.connection_string),
-         true <-
-           Process.link(connection.pid),
-         _ <-
-           Process.monitor(connection.pid),
-         {:ok, channel} <-
-           ExKonsument.open_channel(connection),
-         :ok <-
-           declare_consumer(channel, consumer),
-         {:ok, _} <-
-           ExKonsument.consume(channel, consumer.queue.name) do
+  defp setup_consumer(%{connection: connection} = consumer) do
+    with {:ok, channel} <- ExKonsument.Connection.open_channel(connection),
+         :ok <- declare_consumer(channel, consumer),
+         {:ok, _} <- ExKonsument.consume(channel, consumer.queue.name) do
       {:ok, channel}
     else
       {:error, error} ->
@@ -156,10 +140,11 @@ defmodule ExKonsument.Consumer do
     end
   end
 
-  def terminate(_reason, state) do
-    if ExKonsument.connection_open?(state.channel.conn) do
-      ExKonsument.close_connection(state.channel.conn)
-    end
-    Process.exit(state.channel.conn.pid, :shutdown)
+  defp log_info(consumer, message) do
+    Logger.info "#{consumer.queue.name}: #{message}"
+  end
+
+  defp log_error(consumer, message) do
+    Logger.error "#{consumer.queue.name}: #{message}"
   end
 end
