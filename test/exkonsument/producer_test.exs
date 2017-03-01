@@ -68,11 +68,11 @@ defmodule ExKonsument.ProducerTest do
         {:ok, pid} = ExKonsument.Producer.start_link(producer())
 
         payload = %{test: :payload}
-        ExKonsument.Producer.publish(pid, :routing_key, payload)
+        ExKonsument.Producer.publish(pid, "routing_key", payload)
 
         expected_payload = Poison.encode!(payload)
         assert_receive {
-          :publish, _, "exchange", :routing_key, ^expected_payload}
+          :publish, _, "exchange", "routing_key", ^expected_payload}
       end
     end
   end

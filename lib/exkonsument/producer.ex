@@ -16,7 +16,7 @@ defmodule ExKonsument.Producer do
     {:ok, %{producer: producer}}
   end
 
-  def publish(pid, routing_key, payload) do
+  def publish(pid, routing_key, payload) when is_binary(routing_key) do
     GenServer.call(pid, {:publish, routing_key, payload})
   end
 
