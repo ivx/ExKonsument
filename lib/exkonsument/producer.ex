@@ -40,7 +40,7 @@ defmodule ExKonsument.Producer do
 
       _ ->
         log_error producer, "Error getting channel"
-        :timer.send_after(2000, :connect)
+        :erlang.send_after(2000, self(), :connect)
         {:noreply, state}
     end
   end

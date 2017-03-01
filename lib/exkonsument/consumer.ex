@@ -105,7 +105,7 @@ defmodule ExKonsument.Consumer do
 
       {:error, msg} ->
         log_error(consumer, "Setup failed! reason: #{msg}")
-        :timer.send_after(1000, :connect)
+        :erlang.send_after(1000, self(), :connect)
     end
   end
 
