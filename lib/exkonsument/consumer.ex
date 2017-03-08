@@ -103,9 +103,10 @@ defmodule ExKonsument.Consumer do
         log_info consumer, "Setup successful!"
         {:ok, channel}
 
-      {:error, msg} ->
+      {:error, msg} = error ->
         log_error(consumer, "Setup failed! reason: #{msg}")
         :erlang.send_after(1000, self(), :connect)
+        error
     end
   end
 
