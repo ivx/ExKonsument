@@ -65,7 +65,7 @@ defmodule ExKonsument.Consumer do
   defp handle_message(consumer, payload, opts) do
     case consumer.handling_fn.(payload, opts, consumer.state) do
       :ok -> :ok
-      _ -> raise ExKonsument.HandlingError
+      other -> raise %ExKonsument.HandlingError{return: other}
     end
   end
 
@@ -81,6 +81,7 @@ defmodule ExKonsument.Consumer do
           requeue: not Map.get(opts, :redelivered))
         log_info state.consumer,
           "Message rejected! requeued: #{not Map.get(opts, :redelivered)}"
+      log_info state.consumer, "Exception: #{inspect exception}"
         raise exception
     end
   end

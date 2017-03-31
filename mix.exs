@@ -3,7 +3,7 @@ defmodule ExKonsument.Mixfile do
 
   def project do
     [app: :exkonsument,
-     version: "0.1.1",
+     version: "3.1.0",
      elixir: "~> 1.4",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
@@ -27,10 +27,10 @@ defmodule ExKonsument.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [{:amqp, "~> 0.2.0-pre.1"},
+    [{:amqp, "~> 0.2"},
      {:poison, "~> 2.2 or ~> 3.0"},
      {:connection, "~> 1.0"},
-     {:credo, "~> 0.6.0", only: :dev},
+     {:credo, "~> 0.7", only: :dev},
      {:mock, "~> 0.2", only: :test}]
   end
 end

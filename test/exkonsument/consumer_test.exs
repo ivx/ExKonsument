@@ -32,7 +32,7 @@ defmodule ExKonsument.ConsumerTest do
 
         assert_receive {%{"test" => "test"}, %{delivery_tag: :tag}, :state}
         assert_receive :ack
-        assert called ExKonsument.ack(:channel, :tag)
+        assert called ExKonsument.ack(%AMQP.Channel{}, :tag)
       end
     end
   end
@@ -49,8 +49,10 @@ defmodule ExKonsument.ConsumerTest do
                         %{delivery_tag: :tag, redelivered: false},
                         :state}
         assert_receive :reject
-        assert called ExKonsument.reject(:channel, :tag, requeue: true)
-        assert_receive {:EXIT, ^pid, {%ExKonsument.HandlingError{}, _}}
+        assert called ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: true)
+        assert_receive {:EXIT,
+                        ^pid,
+                        {%ExKonsument.HandlingError{return: :not_ok}, _}}
       end
     end
   end
@@ -68,8 +70,10 @@ defmodule ExKonsument.ConsumerTest do
                         %{delivery_tag: :tag, redelivered: true},
                         :state}
         assert_receive :reject
-        assert called ExKonsument.reject(:channel, :tag, requeue: false)
-        assert_receive {:EXIT, ^pid, {%ExKonsument.HandlingError{}, _}}
+        assert called ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: false)
+        assert_receive {:EXIT,
+                        ^pid,
+                        {%ExKonsument.HandlingError{return: :not_ok}, _}}
       end
     end
   end
@@ -84,7 +88,7 @@ defmodule ExKonsument.ConsumerTest do
           consumer, %{delivery_tag: :tag, redelivered: false})
 
         assert_receive :reject
-        assert called ExKonsument.reject(:channel, :tag, requeue: true)
+        assert called ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: true)
         assert_receive {:EXIT, ^pid, {%RuntimeError{message: "exception"}, _}}
       end
     end
@@ -100,7 +104,7 @@ defmodule ExKonsument.ConsumerTest do
           consumer, %{delivery_tag: :tag, redelivered: true})
 
         assert_receive :reject
-        assert called ExKonsument.reject(:channel, :tag, requeue: false)
+        assert called ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: false)
         assert_receive {:EXIT, ^pid, {%RuntimeError{message: "exception"}, _}}
       end
     end
@@ -117,18 +121,18 @@ defmodule ExKonsument.ConsumerTest do
 
         assert_receive {%{"test" => "test"}, %{delivery_tag: :tag}, :state}
 
-        assert called ExKonsument.declare_exchange(:channel,
+        assert called ExKonsument.declare_exchange(%AMQP.Channel{},
                                                    :exchange_name,
                                                    :exchange_type,
                                                    :exchange_options)
-        assert called ExKonsument.declare_queue(:channel,
+        assert called ExKonsument.declare_queue(%AMQP.Channel{},
                                                 :queue_name,
                                                 :queue_options)
-        assert called ExKonsument.bind_queue(:channel,
+        assert called ExKonsument.bind_queue(%AMQP.Channel{},
                                              :queue_name,
                                              :exchange_name,
                                              ["testing"])
-        assert called ExKonsument.consume(:channel, :queue_name)
+        assert called ExKonsument.consume(%AMQP.Channel{}, :queue_name)
       end
     end
   end
@@ -152,7 +156,7 @@ defmodule ExKonsument.ConsumerTest do
         {:ok, pid} = ExKonsument.Consumer.start_link(consumer())
         assert_receive {:open_channel, _}
         assert_receive :bind_queue
-        send pid, {:channel_closed, :channel}
+        send pid, {:channel_closed, %AMQP.Channel{}}
         assert_receive {:open_channel, _}
         assert_receive :bind_queue
       end
@@ -224,7 +228,7 @@ defmodule ExKonsument.ConsumerTest do
     [
       {ExKonsument.Connection, [], [open_channel: fn connection ->
                                       send test_pid, {:open_channel, connection}
-                                      {:ok, :channel}
+                                      {:ok, %AMQP.Channel{}}
                                     end]}
     ]
   end
