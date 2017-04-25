@@ -8,7 +8,7 @@ Just put it in your `mix.exs` and `mix deps.get`.
 
 ```elixir
 def deps do
-  [{:exkonsument, "~> 3.0.1"}]
+  [{:exkonsument, "~> 3.1.0"}]
 end
 ```
 
