@@ -202,7 +202,7 @@ defmodule ExKonsument.ConsumerTest do
     }
   end
 
-  defp amqp_mocks() do
+  defp amqp_mocks do
     test_pid = self()
     [
       {ExKonsument, [], [declare_exchange: fn _, _, _, _ -> :ok end,

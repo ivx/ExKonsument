@@ -3,6 +3,8 @@ defmodule ExKonsument.ProducerTest do
 
   import Mock
 
+  @exchange %ExKonsument.Exchange{name: "exchange", type: :topic}
+
   test "it can be started" do
     with_mocks message_queue_mocks() do
       with_mocks exkonsument_connection_mocks() do
@@ -96,19 +98,15 @@ defmodule ExKonsument.ProducerTest do
     end
   end
 
-  defp exchange do
-    %ExKonsument.Exchange{name: "exchange", type: :topic}
-  end
-
   defp producer do
     {:ok, pid} = ExKonsument.Connection.start_link
     %ExKonsument.Producer{
-      exchange: exchange(),
+      exchange: @exchange,
       connection: pid
     }
   end
 
-  defp message_queue_mocks() do
+  defp message_queue_mocks do
     [
       {ExKonsument, [], [declare_exchange: declare_exchange_mock(self())]},
       {ExKonsument, [], [publish: publish_mock(self())]},
@@ -136,7 +134,7 @@ defmodule ExKonsument.ProducerTest do
     end
   end
 
-  defp exkonsument_connection_mocks() do
+  defp exkonsument_connection_mocks do
     [
       {ExKonsument.Connection, [], [open_channel: open_channel_mock(self())]},
       {ExKonsument.Connection, [], [start_link: start_link_mock()]}

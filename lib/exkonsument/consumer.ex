@@ -70,20 +70,19 @@ defmodule ExKonsument.Consumer do
   end
 
   defp consume_message(message, opts, state) do
-    try do
-      :ok = handle_message(state.consumer, message, opts)
-      ExKonsument.ack(state.channel, Map.get(opts, :delivery_tag))
-    rescue
-      exception ->
-        ExKonsument.reject(
-          state.channel,
-          Map.get(opts, :delivery_tag),
-          requeue: not Map.get(opts, :redelivered))
-        log_info state.consumer,
-          "Message rejected! requeued: #{not Map.get(opts, :redelivered)}"
+    :ok = handle_message(state.consumer, message, opts)
+    ExKonsument.ack(state.channel, Map.get(opts, :delivery_tag))
+  rescue
+    exception ->
+      stacktrace = System.stacktrace
+      ExKonsument.reject(
+        state.channel,
+        Map.get(opts, :delivery_tag),
+        requeue: not Map.get(opts, :redelivered))
+      log_info state.consumer,
+        "Message rejected! requeued: #{not Map.get(opts, :redelivered)}"
       log_info state.consumer, "Exception: #{inspect exception}"
-        raise exception
-    end
+      reraise exception, stacktrace
   end
 
   defp connect(state) do

@@ -10,8 +10,8 @@ defmodule ExKonsument.ConnectionTest do
 
   test "it can get a name", %{test: test} do
     name = Module.concat(__MODULE__, test)
-    {:ok, _} = ExKonsument.Connection.start_link(name: name)
-    assert Process.whereis(name) |> Process.alive?
+    {:ok, pid} = ExKonsument.Connection.start_link(name: name)
+    assert Process.whereis(name) == pid
   end
 
   test "it connects on start-up" do
@@ -127,7 +127,7 @@ defmodule ExKonsument.ConnectionTest do
   end
 
   defp log_mock(pid) do
-    fn _ ,message, meta ->
+    fn _, message, meta ->
       send pid, {:bare_log, message, meta}
       :ok
     end
