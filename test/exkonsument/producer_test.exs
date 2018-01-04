@@ -43,9 +43,8 @@ defmodule ExKonsument.ProducerTest do
   test "it retries to get a channel when it failed" do
     with_mocks message_queue_mocks() do
       with_mock ExKonsument.Connection,
-                [open_channel: error_channel_mock(self()),
-                 start_link: fn -> {:ok, :connection} end] do
-
+        open_channel: error_channel_mock(self()),
+        start_link: fn -> {:ok, :connection} end do
         {:ok, _pid} = ExKonsument.Producer.start_link(producer())
         assert_receive {:open_channel, :connection}
         assert_receive {:open_channel, :connection}, 3000
@@ -73,24 +72,31 @@ defmodule ExKonsument.ProducerTest do
         ExKonsument.Producer.publish(pid, "routing_key", payload)
 
         expected_payload = Poison.encode!(payload)
+
         assert_receive {
-          :publish, _, "exchange", "routing_key", ^expected_payload}
+                         :publish,
+                         _,
+                         "exchange",
+                         "routing_key",
+                         ^expected_payload
+                       }
       end
     end
   end
 
   test "it tries to reconnect when the channel dies" do
     {:ok, channel} = Agent.start(fn -> [] end)
-    with_mock ExKonsument, [declare_exchange: fn _, _, _, _ -> :ok end,
-                            open_connection: &open_connection_mock/1] do
-      with_mock ExKonsument.Connection,
-        [open_channel: open_channel_mock(self(), %{pid: channel}),
-         start_link: start_link_mock()] do
 
+    with_mock ExKonsument,
+      declare_exchange: fn _, _, _, _ -> :ok end,
+      open_connection: &open_connection_mock/1 do
+      with_mock ExKonsument.Connection,
+        open_channel: open_channel_mock(self(), %{pid: channel}),
+        start_link: start_link_mock() do
         {:ok, pid} = ExKonsument.Producer.start_link(producer())
         assert_receive {:open_channel, _}
 
-        send pid, {:channel_closed, %{pid: channel}}
+        send(pid, {:channel_closed, %{pid: channel}})
 
         assert_receive {:open_channel, _}
         GenServer.stop(pid)
@@ -99,7 +105,8 @@ defmodule ExKonsument.ProducerTest do
   end
 
   defp producer do
-    {:ok, pid} = ExKonsument.Connection.start_link
+    {:ok, pid} = ExKonsument.Connection.start_link()
+
     %ExKonsument.Producer{
       exchange: @exchange,
       connection: pid
@@ -117,7 +124,7 @@ defmodule ExKonsument.ProducerTest do
 
   defp publish_mock(pid) do
     fn channel, exchange, routing_key, payload ->
-      send pid, {:publish, channel, exchange, routing_key, payload}
+      send(pid, {:publish, channel, exchange, routing_key, payload})
       :ok
     end
   end
@@ -129,7 +136,7 @@ defmodule ExKonsument.ProducerTest do
 
   defp declare_exchange_mock(pid) do
     fn channel, exchange, type, opts ->
-      send pid, {:declare_exchange, channel, exchange, type, opts}
+      send(pid, {:declare_exchange, channel, exchange, type, opts})
       :ok
     end
   end
@@ -152,7 +159,7 @@ defmodule ExKonsument.ProducerTest do
 
   defp open_channel_mock(pid, channel \\ default_channel()) do
     fn connection ->
-      send pid, {:open_channel, connection}
+      send(pid, {:open_channel, connection})
       {:ok, channel}
     end
   end
@@ -164,7 +171,7 @@ defmodule ExKonsument.ProducerTest do
 
   defp error_channel_mock(pid) do
     fn connection ->
-      send pid, {:open_channel, connection}
+      send(pid, {:open_channel, connection})
       {:error, :reason}
     end
   end

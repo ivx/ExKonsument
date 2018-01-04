@@ -12,7 +12,7 @@ defmodule ExKonsument.Producer do
   end
 
   def init(producer) do
-    send self(), :connect
+    send(self(), :connect)
     {:ok, %{producer: producer}}
   end
 
@@ -21,33 +21,36 @@ defmodule ExKonsument.Producer do
   end
 
   def handle_call({:publish, routing_key, payload}, _, state) do
-    result = ExKonsument.publish(
-      state.channel,
-      state.producer.exchange.name,
-      routing_key,
-      Poison.encode!(payload))
+    result =
+      ExKonsument.publish(
+        state.channel,
+        state.producer.exchange.name,
+        routing_key,
+        Poison.encode!(payload)
+      )
 
     {:reply, result, state}
   end
 
   def handle_info(:connect, %{producer: producer} = state) do
-    log_info producer, "Trying to get channel..."
+    log_info(producer, "Trying to get channel...")
+
     case ExKonsument.Connection.open_channel(producer.connection) do
       {:ok, channel} ->
-        log_info producer, "Got channel!"
+        log_info(producer, "Got channel!")
         :ok = declare_exchange(channel, producer.exchange)
         {:noreply, Map.put(state, :channel, channel)}
 
       _ ->
-        log_error producer, "Error getting channel"
+        log_error(producer, "Error getting channel")
         :erlang.send_after(2000, self(), :connect)
         {:noreply, state}
     end
   end
 
   def handle_info({:channel_closed, _channel}, state) do
-    log_info state.producer, "Channel was closed"
-    send self(), :connect
+    log_info(state.producer, "Channel was closed")
+    send(self(), :connect)
     {:noreply, state}
   end
 
@@ -56,14 +59,15 @@ defmodule ExKonsument.Producer do
       channel,
       exchange.name,
       exchange.type,
-      exchange.options)
+      exchange.options
+    )
   end
 
   defp log_info(producer, message) do
-    Logger.info "Producer '#{producer.exchange.name}': #{message}"
+    Logger.info("Producer '#{producer.exchange.name}': #{message}")
   end
 
   defp log_error(producer, message) do
-    Logger.error "Producer '#{producer.exchange.name}': #{message}"
+    Logger.error("Producer '#{producer.exchange.name}': #{message}")
   end
 end

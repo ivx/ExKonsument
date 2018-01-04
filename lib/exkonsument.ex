@@ -17,7 +17,9 @@ defmodule ExKonsument do
       {:ok, channel} ->
         AMQP.Basic.qos(channel, prefetch_count: 1)
         {:ok, channel}
-      {:error, _} = error -> error
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -45,6 +47,7 @@ defmodule ExKonsument do
     Enum.each(routing_keys, fn key ->
       :ok = AMQP.Queue.bind(channel, queue, exchange, routing_key: key)
     end)
+
     :ok
   end
 
