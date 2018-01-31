@@ -74,12 +74,12 @@ defmodule ExKonsument.ProducerTest do
         expected_payload = Poison.encode!(payload)
 
         assert_receive {
-                         :publish,
-                         _,
-                         "exchange",
-                         "routing_key",
-                         ^expected_payload
-                       }
+          :publish,
+          _,
+          "exchange",
+          "routing_key",
+          ^expected_payload
+        }
       end
     end
   end

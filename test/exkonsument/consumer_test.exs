@@ -50,19 +50,19 @@ defmodule ExKonsument.ConsumerTest do
           })
 
         assert_receive {
-                         %{"test" => "test"},
-                         %{delivery_tag: :tag, redelivered: false},
-                         :state
-                       }
+          %{"test" => "test"},
+          %{delivery_tag: :tag, redelivered: false},
+          :state
+        }
 
         assert_receive :reject
         assert called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: true))
 
         assert_receive {
-                         :EXIT,
-                         ^pid,
-                         {%ExKonsument.HandlingError{return: :not_ok}, _}
-                       }
+          :EXIT,
+          ^pid,
+          {%ExKonsument.HandlingError{return: :not_ok}, _}
+        }
       end
     end
   end
@@ -81,19 +81,19 @@ defmodule ExKonsument.ConsumerTest do
           })
 
         assert_receive {
-                         %{"test" => "test"},
-                         %{delivery_tag: :tag, redelivered: true},
-                         :state
-                       }
+          %{"test" => "test"},
+          %{delivery_tag: :tag, redelivered: true},
+          :state
+        }
 
         assert_receive :reject
         assert called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: false))
 
         assert_receive {
-                         :EXIT,
-                         ^pid,
-                         {%ExKonsument.HandlingError{return: :not_ok}, _}
-                       }
+          :EXIT,
+          ^pid,
+          {%ExKonsument.HandlingError{return: :not_ok}, _}
+        }
       end
     end
   end
@@ -148,9 +148,10 @@ defmodule ExKonsument.ConsumerTest do
 
         send(
           pid,
-          {:basic_deliver, Poison.encode!(%{test: "test"}), %{
-            delivery_tag: :tag
-          }}
+          {:basic_deliver, Poison.encode!(%{test: "test"}),
+           %{
+             delivery_tag: :tag
+           }}
         )
 
         assert_receive {%{"test" => "test"}, %{delivery_tag: :tag}, :state}
@@ -257,23 +258,24 @@ defmodule ExKonsument.ConsumerTest do
     test_pid = self()
 
     [
-      {ExKonsument, [], [
-        declare_exchange: fn _, _, _, _ -> :ok end,
-        declare_queue: fn _, _, _ -> {:ok, :queue} end,
-        bind_queue: fn _, _, _, _ ->
-          send(test_pid, :bind_queue)
-          :ok
-        end,
-        consume: fn _, _ -> {:ok, :result} end,
-        ack: fn _, _ ->
-          send(test_pid, :ack)
-          :ok
-        end,
-        reject: fn _, _, _ ->
-          send(test_pid, :reject)
-          :reject
-        end
-      ]}
+      {ExKonsument, [],
+       [
+         declare_exchange: fn _, _, _, _ -> :ok end,
+         declare_queue: fn _, _, _ -> {:ok, :queue} end,
+         bind_queue: fn _, _, _, _ ->
+           send(test_pid, :bind_queue)
+           :ok
+         end,
+         consume: fn _, _ -> {:ok, :result} end,
+         ack: fn _, _ ->
+           send(test_pid, :ack)
+           :ok
+         end,
+         reject: fn _, _, _ ->
+           send(test_pid, :reject)
+           :reject
+         end
+       ]}
     ]
   end
 
@@ -281,12 +283,13 @@ defmodule ExKonsument.ConsumerTest do
     test_pid = self()
 
     [
-      {ExKonsument.Connection, [], [
-        open_channel: fn connection ->
-          send(test_pid, {:open_channel, connection})
-          {:ok, %AMQP.Channel{}}
-        end
-      ]}
+      {ExKonsument.Connection, [],
+       [
+         open_channel: fn connection ->
+           send(test_pid, {:open_channel, connection})
+           {:ok, %AMQP.Channel{}}
+         end
+       ]}
     ]
   end
 
