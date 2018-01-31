@@ -8,6 +8,8 @@ defmodule ExKonsument.Mixfile do
       elixir: "~> 1.4",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
+      description: description(),
+      package: package(),
       deps: deps()
     ]
   end
@@ -17,6 +19,22 @@ defmodule ExKonsument.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     [applications: [:logger]]
+  end
+
+  defp description do
+    """
+    A library for writing RabbitMQ pubishers and consumers.
+    """
+  end
+
+  defp package do
+    [
+      name: :exkonsument,
+      files: ["lib", "mix.exs", "README*"],
+      maintainers: ["Mario Mainz"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/ivx/exkonsument"}
+    ]
   end
 
   # Dependencies can be Hex packages:
