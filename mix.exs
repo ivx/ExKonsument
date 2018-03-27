@@ -48,10 +48,10 @@ defmodule ExKonsument.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:amqp, "~> 0.2"},
+      {:amqp, "~> 1.0"},
       {:poison, "~> 2.2 or ~> 3.0"},
       {:connection, "~> 1.0"},
-      {:credo, "~> 0.7", only: :dev},
+      {:credo, "~> 0.9", only: :dev},
       {:mock, "~> 0.2", only: :test}
     ]
   end
