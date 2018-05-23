@@ -35,9 +35,9 @@ defmodule ExKonsument do
     AMQP.Queue.declare(channel, queue, opts)
   end
 
-  def publish(channel, exchange, routing_key, payload) do
+  def publish(channel, exchange, routing_key, payload, options \\ []) do
     if Process.alive?(channel.pid) do
-      AMQP.Basic.publish(channel, exchange, routing_key, payload)
+      AMQP.Basic.publish(channel, exchange, routing_key, payload, options)
     else
       :error
     end

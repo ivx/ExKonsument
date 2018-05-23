@@ -60,7 +60,7 @@ defmodule ExKonsumentTest do
   end
 
   test "publish calls AMQP.Basic.publih when channel is alive" do
-    with_mock AMQP.Basic, publish: fn _, _, _, _ -> :ok end do
+    with_mock AMQP.Basic, publish: fn _, _, _, _, _ -> :ok end do
       {:ok, agent} = Agent.start_link(fn -> [] end)
 
       assert :ok ==
@@ -74,7 +74,7 @@ defmodule ExKonsumentTest do
   end
 
   test "publish returns :error if channel is dead" do
-    with_mock AMQP.Basic, publish: fn _, _, _, _ -> :ok end do
+    with_mock AMQP.Basic, publish: fn _, _, _, _, _ -> :ok end do
       {:ok, agent} = Agent.start_link(fn -> [] end)
 
       Agent.stop(agent)
