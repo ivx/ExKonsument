@@ -78,7 +78,31 @@ defmodule ExKonsument.ProducerTest do
           _,
           "exchange",
           "routing_key",
-          ^expected_payload
+          ^expected_payload,
+          _
+        }
+      end
+    end
+  end
+
+  test "it publishes a payload and headers to the exchange" do
+    with_mocks message_queue_mocks() do
+      with_mocks exkonsument_connection_mocks() do
+        {:ok, pid} = ExKonsument.Producer.start_link(producer())
+
+        payload = %{test: :payload}
+        options = [headers: [{:tenant_id, 31}, {:job_id, 45}]]
+        ExKonsument.Producer.publish(pid, "routing_key", payload, options)
+
+        expected_payload = Poison.encode!(payload)
+
+        assert_receive {
+          :publish,
+          _,
+          "exchange",
+          "routing_key",
+          ^expected_payload,
+          ^options
         }
       end
     end
@@ -123,8 +147,8 @@ defmodule ExKonsument.ProducerTest do
   end
 
   defp publish_mock(pid) do
-    fn channel, exchange, routing_key, payload ->
-      send(pid, {:publish, channel, exchange, routing_key, payload})
+    fn channel, exchange, routing_key, payload, options ->
+      send(pid, {:publish, channel, exchange, routing_key, payload, options})
       :ok
     end
   end

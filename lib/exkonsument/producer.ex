@@ -16,17 +16,19 @@ defmodule ExKonsument.Producer do
     {:ok, %{producer: producer}}
   end
 
-  def publish(pid, routing_key, payload) when is_binary(routing_key) do
-    GenServer.call(pid, {:publish, routing_key, payload})
+  def publish(pid, routing_key, payload, options \\ [])
+      when is_binary(routing_key) do
+    GenServer.call(pid, {:publish, routing_key, payload, options})
   end
 
-  def handle_call({:publish, routing_key, payload}, _, state) do
+  def handle_call({:publish, routing_key, payload, options}, _, state) do
     result =
       ExKonsument.publish(
         state.channel,
         state.producer.exchange.name,
         routing_key,
-        Poison.encode!(payload)
+        Poison.encode!(payload),
+        options
       )
 
     {:reply, result, state}
