@@ -30,8 +30,8 @@ defmodule ExKonsument.Mixfile do
   defp package do
     [
       name: :exkonsument,
-      files: ["lib", "mix.exs", "README*"],
-      maintainers: ["Mario Mainz"],
+      files: ["lib", "mix.exs", "README*", "LICENSE"],
+      maintainers: ["Mario Mainz, Alexander Marold"],
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/ivx/exkonsument"}
     ]
