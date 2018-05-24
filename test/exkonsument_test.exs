@@ -59,7 +59,7 @@ defmodule ExKonsumentTest do
     refute ExKonsument.connection_open?(connection)
   end
 
-  test "publish calls AMQP.Basic.publih when channel is alive" do
+  test "publish calls AMQP.Basic.publish when channel is alive" do
     with_mock AMQP.Basic, publish: fn _, _, _, _, _ -> :ok end do
       {:ok, agent} = Agent.start_link(fn -> [] end)
 
@@ -69,6 +69,21 @@ defmodule ExKonsumentTest do
                  :exchange,
                  :routing_key,
                  :payload
+               )
+    end
+  end
+
+  test "publish calls AMQP.Basic.publish with options when channel is alive" do
+    with_mock AMQP.Basic, publish: fn _, _, _, _, _ -> :ok end do
+      {:ok, agent} = Agent.start_link(fn -> [] end)
+
+      assert :ok ==
+               ExKonsument.publish(
+                 %{pid: agent},
+                 :exchange,
+                 :routing_key,
+                 :payload,
+                 []
                )
     end
   end
