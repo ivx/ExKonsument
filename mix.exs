@@ -51,9 +51,10 @@ defmodule ExKonsument.Mixfile do
       {:amqp, "~> 1.0"},
       {:poison, "~> 3.0 or ~> 4.0"},
       {:connection, "~> 1.0"},
-      {:ranch_proxy_protocol, "~> 2.0", override: true},
       {:credo, "~> 0.9", only: :dev},
-      {:mock, "~> 0.2", only: :test}
+      {:mock, "~> 0.2", only: :test},
+      # delete me when everything is OTP 21 compatible
+      {:meck, "0.8.10", only: :test}
     ]
   end
 end
