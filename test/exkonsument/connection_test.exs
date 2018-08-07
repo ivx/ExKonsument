@@ -21,17 +21,6 @@ defmodule ExKonsument.ConnectionTest do
     end
   end
 
-  test "it logs error on connection error" do
-    with_mock Logger, bare_log: log_mock(self()) do
-      with_mock ExKonsument, open_connection: error_connection_mock(self()) do
-        {:ok, _} = ExKonsument.Connection.start_link()
-        assert_receive {:open_connection, "amqp://localhost:5672"}
-        assert_receive {:bare_log, "Connection failed", log_meta}
-        assert "reason" == log_meta[:error]
-      end
-    end
-  end
-
   test "it disconnects on terminate" do
     {:ok, agent} = Agent.start_link(fn -> %{} end)
 
@@ -130,13 +119,6 @@ defmodule ExKonsument.ConnectionTest do
       refute Process.alive?(client_pid)
       assert_receive {:close_channel, %{pid: ^chan_agent}}
       refute Process.alive?(chan_agent)
-    end
-  end
-
-  defp log_mock(pid) do
-    fn _, message, meta ->
-      send(pid, {:bare_log, message, meta})
-      :ok
     end
   end
 

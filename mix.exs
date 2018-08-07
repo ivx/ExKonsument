@@ -49,8 +49,9 @@ defmodule ExKonsument.Mixfile do
   defp deps do
     [
       {:amqp, "~> 1.0"},
-      {:poison, "~> 2.2 or ~> 3.0"},
+      {:poison, "~> 3.0 or ~> 4.0"},
       {:connection, "~> 1.0"},
+      {:ranch_proxy_protocol, "~> 2.0", override: true},
       {:credo, "~> 0.9", only: :dev},
       {:mock, "~> 0.2", only: :test}
     ]
