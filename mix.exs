@@ -54,7 +54,7 @@ defmodule ExKonsument.Mixfile do
       {:credo, "~> 0.9", only: :dev},
       {:mock, "~> 0.2", only: :test},
       # delete me when everything is OTP 21 compatible
-      {:meck, "0.8.10", only: :test}
+      {:meck, "0.8.12", only: :test}
     ]
   end
 end
