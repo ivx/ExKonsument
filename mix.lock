@@ -3,7 +3,7 @@
   "amqp_client": {:hex, :amqp_client, "3.7.7", "e5ac06275d140d21ff30408d90419e9f7ecc31f1b125736c29911b8eec3e54d4", [:make, :rebar3], [{:rabbit_common, "3.7.7", [hex: :rabbit_common, repo: "hexpm", optional: false]}], "hexpm"},
   "bunt": {:hex, :bunt, "0.2.0", "951c6e801e8b1d2cbe58ebbd3e616a869061ddadcc4863d0a2182541acae9a38", [:mix], [], "hexpm"},
   "connection": {:hex, :connection, "1.0.4", "a1cae72211f0eef17705aaededacac3eb30e6625b04a6117c1b2db6ace7d5976", [:mix], [], "hexpm"},
-  "credo": {:hex, :credo, "0.10.0", "66234a95effaf9067edb19fc5d0cd5c6b461ad841baac42467afed96c78e5e9e", [:mix], [{:bunt, "~> 0.2.0", [hex: :bunt, repo: "hexpm", optional: false]}, {:jason, "~> 1.0", [hex: :jason, repo: "hexpm", optional: false]}], "hexpm"},
+  "credo": {:hex, :credo, "0.10.1", "e85efaf2dd7054399083ab2c6a5199f6cb1805de1a5b00d9e8c5f07033407b1f", [:mix], [{:bunt, "~> 0.2.0", [hex: :bunt, repo: "hexpm", optional: false]}, {:jason, "~> 1.0", [hex: :jason, repo: "hexpm", optional: false]}], "hexpm"},
   "goldrush": {:hex, :goldrush, "0.1.9", "f06e5d5f1277da5c413e84d5a2924174182fb108dabb39d5ec548b27424cd106", [:rebar3], [], "hexpm"},
   "jason": {:hex, :jason, "1.1.1", "d3ccb840dfb06f2f90a6d335b536dd074db748b3e7f5b11ab61d239506585eb2", [:mix], [{:decimal, "~> 1.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm"},
   "jsx": {:hex, :jsx, "2.8.2", "7acc7d785b5abe8a6e9adbde926a24e481f29956dd8b4df49e3e4e7bcc92a018", [:mix, :rebar3], [], "hexpm"},
