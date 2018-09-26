@@ -1,0 +1,11 @@
+version: '3'
+services:
+  app:
+    build: .
+    links:
+      - mq:mq
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@mq:5672
+
+  mq:
+    image: rabbitmq:management
