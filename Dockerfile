@@ -6,15 +6,12 @@ USER test
 RUN mix local.hex --force
 RUN mix local.rebar --force
 
-COPY . /code
+COPY --chown=test:test . /code
 WORKDIR /code
-USER root
-RUN chown -R test:test /code
-
-USER test
 
 ENV MIX_ENV test
 RUN mix deps.get
+RUN mix compile
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["run"]
