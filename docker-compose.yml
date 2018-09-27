@@ -1,0 +1,8 @@
+version: '3'
+services:
+  app:
+    image: elixir:1.7.3-alpine
+    volumes:
+      - .:/code
+    working_dir: /code
+    entrypoint: /code/docker-entrypoint.sh
