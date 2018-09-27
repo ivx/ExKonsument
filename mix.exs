@@ -4,7 +4,7 @@ defmodule ExKonsument.Mixfile do
   def project do
     [
       app: :exkonsument,
-      version: "3.2.2",
+      version: "3.2.3",
       elixir: "~> 1.6",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
@@ -18,7 +18,7 @@ defmodule ExKonsument.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger]]
+    [applications: [:logger, :connection]]
   end
 
   defp description do
