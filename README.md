@@ -19,7 +19,7 @@ ranch_proxy_protocol dependencies in your application's mix.exs file:
 def deps do
   [
     {:exkonsument, "~> 3.2"},
-    {:lager, "~> 3.6", override: true},
+    {:lager, "~> 3.6.7", override: true},
     {:ranch_proxy_protocol, "~> 2.0", override: true}
   ]
 end
