@@ -4,8 +4,8 @@ defmodule ExKonsument.Mixfile do
   def project do
     [
       app: :exkonsument,
-      version: "3.2.3",
-      elixir: "~> 1.6",
+      version: "3.2.4",
+      elixir: "~> 1.7",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       description: description(),
@@ -52,9 +52,8 @@ defmodule ExKonsument.Mixfile do
       {:poison, "~> 3.0 or ~> 4.0"},
       {:connection, "~> 1.0"},
       {:credo, "~> 0.9", only: [:dev, :test]},
+      {:lager, "~> 3.6", override: true},
       {:mock, "~> 0.2", only: :test},
-      # delete me when everything is OTP 21 compatible
-      {:meck, "0.8.10", only: :test},
       {:ranch_proxy_protocol, "~> 2.0", override: true}
     ]
   end
