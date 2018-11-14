@@ -12,6 +12,19 @@ def deps do
 end
 ```
 
+If you have trouble compiling your app make sure to override the lager and
+ranch_proxy_protocol dependencies in your application's mix.exs file:
+
+```elixir
+def deps do
+  [
+    {:exkonsument, "~> 3.2"},
+    {:lager, "~> 3.6", override: true},
+    {:ranch_proxy_protocol, "~> 2.0", override: true}
+  ]
+end
+```
+
 ## Usage
 
 ### RabbitMQ connection
