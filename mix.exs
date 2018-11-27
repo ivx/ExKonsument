@@ -52,7 +52,6 @@ defmodule ExKonsument.Mixfile do
       {:poison, "~> 3.0 or ~> 4.0"},
       {:connection, "~> 1.0"},
       {:credo, "~> 0.9", only: [:dev, :test]},
-      {:lager, "~> 3.6", override: true},
       {:mock, "~> 0.2", only: :test},
       {:meck, "0.8.10", only: :test}
     ]
