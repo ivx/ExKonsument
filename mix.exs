@@ -4,8 +4,8 @@ defmodule ExKonsument.Mixfile do
   def project do
     [
       app: :exkonsument,
-      version: "3.2.4",
-      elixir: "~> 1.7",
+      version: "3.3.0",
+      elixir: "~> 1.6",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       description: description(),
@@ -54,7 +54,7 @@ defmodule ExKonsument.Mixfile do
       {:credo, "~> 0.9", only: [:dev, :test]},
       {:lager, "~> 3.6", override: true},
       {:mock, "~> 0.2", only: :test},
-      {:ranch_proxy_protocol, "~> 2.0", override: true}
+      {:meck, "0.8.10", only: :test}
     ]
   end
 end
