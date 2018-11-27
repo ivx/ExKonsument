@@ -11,4 +11,6 @@ if [ "$1" = test ] ; then
   mix format --check-formatted
   mix credo --strict
   mix test
+else
+  exec $@
 fi
