@@ -98,6 +98,25 @@ defmodule ExKonsument.ConsumerTest do
     end
   end
 
+  test "it requeues messages when processing function returns :requeue" do
+    with_mocks connection_mocks() do
+      with_mocks amqp_mocks() do
+        consumer = consumer(handling_fn: handling_fn(self(), :requeue))
+
+        {:ok, _} = start_and_trigger_consumer(consumer, %{delivery_tag: :tag})
+
+        assert_receive {
+          %{"test" => "test"},
+          %{delivery_tag: :tag},
+          :state
+        }
+
+        assert_receive :reject
+        assert called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: true))
+      end
+    end
+  end
+
   test "it requeues messages when an exception occurs" do
     error_fn = fn _, _, _ -> raise "exception" end
 

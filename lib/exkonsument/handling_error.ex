@@ -1,3 +1,3 @@
 defmodule ExKonsument.HandlingError do
-  defexception message: "Handling function did not return :ok", return: nil
+  defexception message: "Handling function returned invalid value", return: nil
 end

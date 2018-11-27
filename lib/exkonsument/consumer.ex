@@ -69,13 +69,25 @@ defmodule ExKonsument.Consumer do
   defp handle_message(consumer, payload, opts) do
     case consumer.handling_fn.(payload, opts, consumer.state) do
       :ok -> :ok
+      :requeue -> :requeue
       other -> raise %ExKonsument.HandlingError{return: other}
     end
   end
 
   defp consume_message(message, opts, state) do
-    :ok = handle_message(state.consumer, message, opts)
-    ExKonsument.ack(state.channel, Map.get(opts, :delivery_tag))
+    state.consumer
+    |> handle_message(message, opts)
+    |> case do
+      :ok ->
+        ExKonsument.ack(state.channel, Map.get(opts, :delivery_tag))
+
+      :requeue ->
+        ExKonsument.reject(
+          state.channel,
+          Map.get(opts, :delivery_tag),
+          requeue: true
+        )
+    end
   rescue
     exception ->
       stacktrace = System.stacktrace()

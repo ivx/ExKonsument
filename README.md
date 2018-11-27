@@ -71,6 +71,7 @@ defmodule YourConsumer do
     # ... do stuff
     :ok
     # :ok will ack the message
+    # :requeue will requeue the message
     # any other return value rejects it, only requeueing it if it wasn't
     # redelivered already
   end
