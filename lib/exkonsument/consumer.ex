@@ -28,7 +28,7 @@ defmodule ExKonsument.Consumer do
   def handle_info({:basic_deliver, payload, opts}, state) do
     log_info(state.consumer, "Message received!")
 
-    case Poison.decode(payload) do
+    case Jason.decode(payload) do
       {:ok, parsed_payload} ->
         consume_message(parsed_payload, opts, state)
         log_info(state.consumer, "Message handled!")

@@ -71,7 +71,7 @@ defmodule ExKonsument.ProducerTest do
         payload = %{test: :payload}
         ExKonsument.Producer.publish(pid, "routing_key", payload)
 
-        expected_payload = Poison.encode!(payload)
+        expected_payload = Jason.encode!(payload)
 
         assert_receive {
           :publish,
@@ -94,7 +94,7 @@ defmodule ExKonsument.ProducerTest do
         options = [headers: [{:tenant_id, 31}, {:job_id, 45}]]
         ExKonsument.Producer.publish(pid, "routing_key", payload, options)
 
-        expected_payload = Poison.encode!(payload)
+        expected_payload = Jason.encode!(payload)
 
         assert_receive {
           :publish,

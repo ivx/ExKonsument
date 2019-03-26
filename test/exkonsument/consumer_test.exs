@@ -167,7 +167,7 @@ defmodule ExKonsument.ConsumerTest do
 
         send(
           pid,
-          {:basic_deliver, Poison.encode!(%{test: "test"}),
+          {:basic_deliver, Jason.encode!(%{test: "test"}),
            %{
              delivery_tag: :tag
            }}
@@ -318,7 +318,7 @@ defmodule ExKonsument.ConsumerTest do
 
     send(
       pid,
-      {:basic_deliver, Poison.encode!(%{test: "test"}), message_options}
+      {:basic_deliver, Jason.encode!(%{test: "test"}), message_options}
     )
 
     {:ok, pid}

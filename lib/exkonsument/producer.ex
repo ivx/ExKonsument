@@ -27,7 +27,7 @@ defmodule ExKonsument.Producer do
         state.channel,
         state.producer.exchange.name,
         routing_key,
-        Poison.encode!(payload),
+        Jason.encode!(payload),
         options
       )
 

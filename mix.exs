@@ -49,7 +49,7 @@ defmodule ExKonsument.Mixfile do
   defp deps do
     [
       {:amqp, "~> 1.1"},
-      {:poison, "~> 3.0 or ~> 4.0"},
+      {:jason, "~> 1.0"},
       {:connection, "~> 1.0"},
       {:credo, "~> 1.0", only: [:dev, :test]},
       {:mock, "~> 0.2", only: :test}
