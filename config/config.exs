@@ -2,4 +2,8 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 
-import_config "#{Mix.env}.exs"
+config :lager,
+  handlers: [],
+  crash_log: false
+
+import_config "#{Mix.env()}.exs"
