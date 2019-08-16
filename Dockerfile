@@ -1,4 +1,0 @@
-FROM elixir:1.9.0-alpine
-WORKDIR /code
-ADD . .
-ENTRYPOINT ["./docker-entrypoint.sh"]
