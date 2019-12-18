@@ -48,7 +48,7 @@ defmodule ExKonsument.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:amqp, "~> 1.3.2"},
+      {:amqp, "~> 1.4"},
       {:jason, "~> 1.0"},
       {:connection, "~> 1.0"},
       {:credo, "~> 1.0", only: [:dev, :test]},
