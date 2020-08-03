@@ -9,23 +9,23 @@ defmodule ExKonsumentTest do
     with_mock AMQP.Queue, bind: fn _, _, _, _ -> :ok end do
       ExKonsument.bind_queue(:channel, :queue, :exchange, routing_keys)
 
-      assert called(
-               AMQP.Queue.bind(
-                 :channel,
-                 :queue,
-                 :exchange,
-                 routing_key: :first_routing_key
-               )
-             )
+      assert_called(
+        AMQP.Queue.bind(
+          :channel,
+          :queue,
+          :exchange,
+          routing_key: :first_routing_key
+        )
+      )
 
-      assert called(
-               AMQP.Queue.bind(
-                 :channel,
-                 :queue,
-                 :exchange,
-                 routing_key: :second_routing_key
-               )
-             )
+      assert_called(
+        AMQP.Queue.bind(
+          :channel,
+          :queue,
+          :exchange,
+          routing_key: :second_routing_key
+        )
+      )
     end
   end
 
@@ -36,7 +36,7 @@ defmodule ExKonsumentTest do
           {:ok, connection} = ExKonsument.open_connection("")
           {:ok, channel} = ExKonsument.open_channel(connection)
 
-          assert called(AMQP.Basic.qos(channel, prefetch_count: 1))
+          assert_called(AMQP.Basic.qos(channel, prefetch_count: 1))
         end
       end
     end
@@ -45,7 +45,7 @@ defmodule ExKonsumentTest do
   test "closes a connection" do
     with_mock AMQP.Connection, close: fn _ -> nil end do
       ExKonsument.close_connection(:connection)
-      assert called(AMQP.Connection.close(:connection))
+      assert_called(AMQP.Connection.close(:connection))
     end
   end
 

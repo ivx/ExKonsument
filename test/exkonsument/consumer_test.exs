@@ -32,7 +32,7 @@ defmodule ExKonsument.ConsumerTest do
 
         assert_receive {%{"test" => "test"}, %{delivery_tag: :tag}, :state}
         assert_receive :ack
-        assert called(ExKonsument.ack(%AMQP.Channel{}, :tag))
+        assert_called(ExKonsument.ack(%AMQP.Channel{}, :tag))
       end
     end
   end
@@ -56,7 +56,7 @@ defmodule ExKonsument.ConsumerTest do
         }
 
         assert_receive :reject
-        assert called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: true))
+        assert_called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: true))
 
         assert_receive {
           :EXIT,
@@ -87,7 +87,7 @@ defmodule ExKonsument.ConsumerTest do
         }
 
         assert_receive :reject
-        assert called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: false))
+        assert_called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: false))
 
         assert_receive {
           :EXIT,
@@ -112,7 +112,7 @@ defmodule ExKonsument.ConsumerTest do
         }
 
         assert_receive :reject
-        assert called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: true))
+        assert_called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: true))
       end
     end
   end
@@ -132,7 +132,7 @@ defmodule ExKonsument.ConsumerTest do
           })
 
         assert_receive :reject
-        assert called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: true))
+        assert_called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: true))
         assert_receive {:EXIT, ^pid, {%RuntimeError{message: "exception"}, _}}
       end
     end
@@ -153,7 +153,7 @@ defmodule ExKonsument.ConsumerTest do
           })
 
         assert_receive :reject
-        assert called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: false))
+        assert_called(ExKonsument.reject(%AMQP.Channel{}, :tag, requeue: false))
         assert_receive {:EXIT, ^pid, {%RuntimeError{message: "exception"}, _}}
       end
     end
@@ -175,33 +175,33 @@ defmodule ExKonsument.ConsumerTest do
 
         assert_receive {%{"test" => "test"}, %{delivery_tag: :tag}, :state}
 
-        assert called(
-                 ExKonsument.declare_exchange(
-                   %AMQP.Channel{},
-                   :exchange_name,
-                   :exchange_type,
-                   :exchange_options
-                 )
-               )
+        assert_called(
+          ExKonsument.declare_exchange(
+            %AMQP.Channel{},
+            :exchange_name,
+            :exchange_type,
+            :exchange_options
+          )
+        )
 
-        assert called(
-                 ExKonsument.declare_queue(
-                   %AMQP.Channel{},
-                   :queue_name,
-                   :queue_options
-                 )
-               )
+        assert_called(
+          ExKonsument.declare_queue(
+            %AMQP.Channel{},
+            :queue_name,
+            :queue_options
+          )
+        )
 
-        assert called(
-                 ExKonsument.bind_queue(
-                   %AMQP.Channel{},
-                   :queue_name,
-                   :exchange_name,
-                   ["testing"]
-                 )
-               )
+        assert_called(
+          ExKonsument.bind_queue(
+            %AMQP.Channel{},
+            :queue_name,
+            :exchange_name,
+            ["testing"]
+          )
+        )
 
-        assert called(ExKonsument.consume(%AMQP.Channel{}, :queue_name))
+        assert_called(ExKonsument.consume(%AMQP.Channel{}, :queue_name))
       end
     end
   end
