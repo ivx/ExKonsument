@@ -4,7 +4,7 @@ defmodule ExKonsument.Mixfile do
   def project do
     [
       app: :exkonsument,
-      version: "4.1.2",
+      version: "4.2.0",
       elixir: "~> 1.6",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
@@ -48,7 +48,7 @@ defmodule ExKonsument.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:amqp, "~> 1.4"},
+      {:amqp, "~> 2.0"},
       {:jason, "~> 1.0"},
       {:connection, "~> 1.0"},
       {:credo, "~> 1.0", only: [:dev, :test]},
