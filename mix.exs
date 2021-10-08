@@ -4,7 +4,7 @@ defmodule ExKonsument.Mixfile do
   def project do
     [
       app: :exkonsument,
-      version: "4.3.0",
+      version: "4.2.0",
       elixir: "~> 1.10",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
