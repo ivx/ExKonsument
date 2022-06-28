@@ -52,6 +52,7 @@ defmodule ExKonsument.Mixfile do
       {:jason, "~> 1.0"},
       {:connection, "~> 1.0"},
       {:credo, "~> 1.0", only: [:dev, :test]},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:mock, "~> 0.2", only: :test}
     ]
   end
